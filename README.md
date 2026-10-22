@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/banner.png" alt="AdPilot AI Banner" width="100%">
+</p>
+
 # 🚀 AdPilot AI — Navegador Integrado & Copiloto para Tráfego Pago
 
 > **O primeiro navegador workspace inteligente com Copiloto de Inteligência Artificial desenhado especificamente para Gestores de Tráfego Pago, Media Buyers e Especialistas em Meta Ads e Instagram.**
