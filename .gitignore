@@ -1,0 +1,16 @@
+# Dependências Node
+node_modules/
+package-lock.json
+
+# Builds do Electron
+dist/
+out/
+
+# Configurações locais e chaves privadas
+adpilot_settings.json
+*.local
+
+# Logs e Sistema Operacional
+.DS_Store
+Thumbs.db
+*.log

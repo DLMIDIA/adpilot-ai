@@ -1,0 +1,26 @@
+{
+  "name": "adpilot-ai",
+  "version": "1.0.0",
+  "description": "Navegador Integrado Inteligente com Copiloto IA para Tráfego Pago, Meta Ads & Instagram",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "keywords": [
+    "meta-ads",
+    "instagram",
+    "facebook-ads",
+    "traffic",
+    "media-buyer",
+    "ai-agent",
+    "gemini",
+    "chromium"
+  ],
+  "author": "Daniel Júnior Barbosa da Silva (DL MIDIA)",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^45.0.0"
+  }
+}

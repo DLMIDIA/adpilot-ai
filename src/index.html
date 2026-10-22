@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AdPilot AI — Tráfego Pago & Meta Ads Copilot</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ===================================================================
+       Barra Superior / Header do Navegador
+       =================================================================== -->
+  <header class="app-header">
+    <div class="browser-controls">
+      <button id="btn-back" class="icon-btn" title="Voltar (⌘[)">◀</button>
+      <button id="btn-forward" class="icon-btn" title="Avançar (⌘])">▶</button>
+      <button id="btn-reload" class="icon-btn" title="Recarregar (⌘R)">↻</button>
+      <button id="btn-home" class="icon-btn" title="Início">🏠</button>
+    </div>
+
+    <!-- Barra de URL / Busca -->
+    <div class="url-bar-container">
+      <input type="text" id="url-input" class="url-bar-input" value="https://adsmanager.facebook.com" placeholder="Digite uma URL ou selecione um atalho...">
+      <button id="btn-go" class="icon-btn" title="Acessar">➜</button>
+    </div>
+
+    <!-- Atalhos de Tráfego Pago -->
+    <div class="quick-presets">
+      <button class="preset-chip active" data-url="https://adsmanager.facebook.com">
+        <span>📊</span> Meta Ads Manager
+      </button>
+      <button class="preset-chip" data-url="https://www.facebook.com/ads/library">
+        <span>🕵️</span> Ad Library
+      </button>
+      <button class="preset-chip" data-url="https://www.instagram.com">
+        <span>📸</span> Instagram
+      </button>
+      <button class="preset-chip" data-url="https://business.facebook.com">
+        <span>💼</span> Business Suite
+      </button>
+      <button class="preset-chip" data-url="https://ads.google.com">
+        <span>🎯</span> Google Ads
+      </button>
+    </div>
+
+    <!-- Indicador de Sessão & Layout -->
+    <div class="header-actions">
+      <div class="session-badge" title="Sessão Chromium persistente: seus logins do Facebook e Instagram permanecem salvos localmente com segurança">
+        <span class="dot-indicator"></span> Sessão Segura
+      </div>
+      <button id="btn-toggle-split" class="icon-btn" title="Alternar visualização do painel">◫</button>
+    </div>
+  </header>
+
+  <!-- ===================================================================
+       Container Principal Dividido (Split Screen)
+       =================================================================== -->
+  <main class="app-container">
+    
+    <!-- Painel Esquerdo: Navegador Chromium Embutido -->
+    <section class="left-panel" id="panel-browser">
+      <div class="webview-loader" id="webview-loader"></div>
+      <webview 
+        id="main-webview" 
+        partition="persist:adpilot_session" 
+        src="https://adsmanager.facebook.com" 
+        allowpopups>
+      </webview>
+    </section>
+
+    <!-- Painel Direito: Copiloto IA (AdPilot) -->
+    <section class="right-panel" id="panel-copilot">
+      
+      <!-- Cabeçalho do Copiloto -->
+      <div class="copilot-header">
+        <div class="copilot-brand">
+          <span class="copilot-logo">🚀</span>
+          <div>
+            <div class="copilot-title">AdPilot AI Copilot</div>
+            <div style="font-size: 10px; color: var(--text-dim);">Por Daniel Júnior Barbosa da Silva (DL MIDIA)</div>
+          </div>
+        </div>
+        <span class="copilot-tag" id="active-model-tag">Gemini 2.0 Flash</span>
+      </div>
+
+      <!-- Abas de Ferramentas de Tráfego -->
+      <nav class="copilot-tabs">
+        <button class="copilot-tab-btn active" data-tab="tab-chat">💬 Chat</button>
+        <button class="copilot-tab-btn" data-tab="tab-audit">🔍 Auditoria Perfil</button>
+        <button class="copilot-tab-btn" data-tab="tab-copy">✍️ Criativos & Copy</button>
+        <button class="copilot-tab-btn" data-tab="tab-tools">📊 Calculadora & Regras</button>
+        <button class="copilot-tab-btn" data-tab="tab-settings">⚙️ Configurações</button>
+      </nav>
+
+      <!-- ABA 1: Chat Copiloto Media Buyer -->
+      <div class="copilot-tab-content active" id="tab-chat">
+        <div class="chat-container">
+          <div class="quick-prompts-bar">
+            <button class="quick-prompt-pill" data-prompt="Como estruturar um teste de criativos 3:2:2 no Meta Ads moderno?">🧪 Teste 3:2:2</button>
+            <button class="quick-prompt-pill" data-prompt="Quais os critérios exatos para pausar um anúncio com CPA alto no CBO?">🚨 Quando Pausar</button>
+            <button class="quick-prompt-pill" data-prompt="Monte um checklist de contingência para evitar bloqueios de BM no Facebook Ads.">🛡️ Contingência</button>
+            <button class="quick-prompt-pill" data-prompt="Qual a melhor estratégia para gerar leads baratos para WhatsApp no Instagram?">📲 Leads WhatsApp</button>
+          </div>
+
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-bubble ai">
+              <strong>Olá, Daniel! Sou seu copiloto de tráfego pago.</strong><br>
+              Posso te ajudar a auditar criativos, definir orçamentos de escala (CBO/ABO), analisar concorrentes na Ad Library e gerar copies persuasivas.<br>
+              <em>Como posso alavancar suas campanhas agora?</em>
+            </div>
+          </div>
+
+          <div class="chat-input-wrapper">
+            <textarea id="chat-input" class="chat-input-field" rows="1" placeholder="Pergunte ao especialista em tráfego... (Pressione Enter para enviar)"></textarea>
+            <button id="btn-chat-send" class="btn-primary" style="padding: 6px 12px;">Enviar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA 2: Auditoria de Perfil Instagram -->
+      <div class="copilot-tab-content" id="tab-audit">
+        <div class="section-title">
+          <span>🔍 Auditoria de Perfil & Conversão</span>
+          <button id="btn-fill-current-url" class="btn-secondary" style="font-size: 10px; padding: 3px 6px;">Puxar Perfil Atual</button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Perfil do Instagram (@handle ou URL)</label>
+          <input type="text" id="audit-handle" class="form-input" placeholder="@seuperfil ou @concorrente">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Nicho de Mercado</label>
+          <input type="text" id="audit-niche" class="form-input" placeholder="Ex: E-commerce de Moda, Clínica Médica, Infoproduto, B2B">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Objetivo Principal do Tráfego</label>
+          <select id="audit-goal" class="form-select">
+            <option value="direct">Vendas / Atendimento no Direct ou WhatsApp</option>
+            <option value="leads">Captação de Leads (Página de Captura)</option>
+            <option value="ecommerce">Vendas Diretas em E-commerce / Catálogo</option>
+            <option value="followers">Ganho de Seguidores Qualificados & Autoridade</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Texto da Bio ou Observações do Perfil</label>
+          <textarea id="audit-bio" class="form-textarea" placeholder="Cole aqui a bio atual, proposta de valor ou observações sobre os destaques..."></textarea>
+        </div>
+
+        <button id="btn-run-audit" class="btn-primary">
+          <span>⚡</span> Executar Auditoria com IA
+        </button>
+
+        <div id="audit-result-box" class="output-box" style="display: none;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <strong style="color: var(--primary);">📋 Relatório de Diagnóstico</strong>
+            <button id="btn-copy-audit" class="btn-secondary" style="font-size: 10px; padding: 2px 6px;">Copiar</button>
+          </div>
+          <div id="audit-result-content"></div>
+        </div>
+      </div>
+
+      <!-- ABA 3: Gerador de Criativos & Copy -->
+      <div class="copilot-tab-content" id="tab-copy">
+        <div class="section-title">
+          <span>✍️ Gerador de Criativos de Alta Conversão</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Produto ou Serviço Oferecido</label>
+          <input type="text" id="copy-product" class="form-input" placeholder="Ex: Mentoria de Negócios, Tênis Ortopédico, Limpeza Dental">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Público-Alvo & Principal Dor / Desejo</label>
+          <input type="text" id="copy-audience" class="form-input" placeholder="Ex: Empresários que trabalham 14h/dia e não conseguem delegar">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Estrutura de Copywriting</label>
+          <select id="copy-framework" class="form-select">
+            <option value="AIDA">AIDA (Atenção, Interesse, Desejo, Ação)</option>
+            <option value="PAS">PAS (Problema, Agitação, Solução)</option>
+            <option value="PATTERN_INTERRUPT">Quebra de Padrão (Hooks de 3s para Reels)</option>
+            <option value="STORYTELLING">História Curta + Ponte de Venda</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Diferencial / Oferta Irresistível</label>
+          <input type="text" id="copy-offer" class="form-input" placeholder="Ex: Desconto de 30% na primeira sessão + Garantia de 30 dias">
+        </div>
+
+        <button id="btn-generate-copy" class="btn-primary">
+          <span>✨</span> Gerar Ganchos, Copies & Briefing
+        </button>
+
+        <div id="copy-result-box" class="output-box" style="display: none;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <strong style="color: var(--primary);">📝 Criativos Gerados</strong>
+            <button id="btn-copy-generated" class="btn-secondary" style="font-size: 10px; padding: 2px 6px;">Copiar Tudo</button>
+          </div>
+          <div id="copy-result-content"></div>
+        </div>
+      </div>
+
+      <!-- ABA 4: Calculadora & Regras (Media Buyer) -->
+      <div class="copilot-tab-content" id="tab-tools">
+        
+        <!-- Calculadora de ROAS & CPA -->
+        <div class="card">
+          <div class="section-title">
+            <span>🎯 Calculadora de ROAS de Equilíbrio & CPA Máximo</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div class="form-group">
+              <label class="form-label">Ticket Médio (R$)</label>
+              <input type="number" id="calc-ticket" class="form-input" value="150" step="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Margem Bruta (%)</label>
+              <input type="number" id="calc-margin" class="form-input" value="50" step="1">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Margem Líquida Alvo pós-anúncios (%)</label>
+            <input type="number" id="calc-target-profit" class="form-input" value="20" step="1">
+          </div>
+
+          <div class="metrics-grid">
+            <div class="metric-item">
+              <div class="metric-label">ROAS de Equilíbrio</div>
+              <div class="metric-value" id="res-breakeven-roas">2.00x</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">CPA Máximo Permitido</div>
+              <div class="metric-value" id="res-max-cpa">R$ 75,00</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">CPA Alvo (Lucro 20%)</div>
+              <div class="metric-value" id="res-target-cpa" style="color: var(--success);">R$ 45,00</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">Lucro Líquido / Venda</div>
+              <div class="metric-value" id="res-net-profit">R$ 30,00</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Matriz de Decisão: Pausar ou Escalar -->
+        <div class="card">
+          <div class="section-title">
+            <span>⚡ Matriz "Pausar ou Escalar?" (Kill or Scale)</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div class="form-group">
+              <label class="form-label">Total Gasto (R$)</label>
+              <input type="number" id="dec-spend" class="form-input" value="120" step="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Conversões (Vendas/Leads)</label>
+              <input type="number" id="dec-conversions" class="form-input" value="4" step="1">
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div class="form-group">
+              <label class="form-label">CTR no Link (%)</label>
+              <input type="number" id="dec-ctr" class="form-input" value="1.8" step="0.1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Frequência</label>
+              <input type="number" id="dec-freq" class="form-input" value="1.2" step="0.1">
+            </div>
+          </div>
+
+          <button id="btn-eval-decision" class="btn-primary" style="width: 100%; margin-top: 6px;">
+            Diagnosticar Anúncio
+          </button>
+
+          <div id="decision-result-card" class="decision-card badge-scale" style="display: none;">
+            <h4 id="decision-result-title" style="margin-bottom: 6px;">🚀 ESCALAR ANÚNCIO</h4>
+            <p id="decision-result-text" style="font-size: 12px; margin-bottom: 8px;"></p>
+            <ul id="decision-result-reasons" style="font-size: 11.5px; padding-left: 16px;"></ul>
+          </div>
+        </div>
+
+        <!-- Gerador de UTM Meta Ads -->
+        <div class="card">
+          <div class="section-title">
+            <span>🔗 Construtor de Parâmetros UTM (Meta Ads)</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">URL da Página de Destino</label>
+            <input type="text" id="utm-url" class="form-input" placeholder="https://seusite.com.br/oferta">
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div class="form-group">
+              <label class="form-label">Origem (utm_source)</label>
+              <input type="text" id="utm-source" class="form-input" value="meta_ads">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Mídia (utm_medium)</label>
+              <input type="text" id="utm-medium" class="form-input" value="paid_social">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Campanha (utm_campaign)</label>
+            <input type="text" id="utm-campaign" class="form-input" value="{{campaign.name}}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Conteúdo / Criativo (utm_content)</label>
+            <input type="text" id="utm-content" class="form-input" value="{{ad.name}}">
+          </div>
+          
+          <button id="btn-generate-utm" class="btn-secondary" style="width: 100%;">
+            Gerar Link Rastreável
+          </button>
+
+          <div id="utm-output-container" style="display: none; margin-top: 10px;">
+            <input type="text" id="utm-final-url" class="form-input" readonly style="color: #6ee7b7; font-size: 11px;">
+            <button id="btn-copy-utm" class="btn-primary" style="width: 100%; margin-top: 6px; font-size: 12px;">
+              Copiar Link com UTM
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ABA 5: Configurações & API Gemini -->
+      <div class="copilot-tab-content" id="tab-settings">
+        <div class="section-title">
+          <span>⚙️ Conexão & Inteligência Artificial</span>
+        </div>
+
+        <div class="card">
+          <div class="form-group">
+            <label class="form-label">Chave de API do Google Gemini</label>
+            <input type="password" id="settings-gemini-key" class="form-input" placeholder="AIzaSy...">
+            <span style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">
+              Sua chave fica armazenada com segurança exclusivamente no seu Mac. Obtenha uma chave gratuita no 
+              <a href="#" id="link-ai-studio" style="color: #a5b4fc; text-decoration: underline;">Google AI Studio</a>.
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Modelo de IA Gemini</label>
+            <select id="settings-model" class="form-select">
+              <option value="gemini-2.0-flash" selected>Google Gemini 2.0 Flash (Mais rápido e recomendado)</option>
+              <option value="gemini-2.5-flash">Google Gemini 2.5 Flash (Última geração)</option>
+              <option value="gemini-1.5-pro">Google Gemini 1.5 Pro (Raciocínio complexo e contexto longo)</option>
+              <option value="gemini-1.5-flash">Google Gemini 1.5 Flash (Econômico)</option>
+            </select>
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button id="btn-save-settings" class="btn-primary" style="flex: 1;">Salvar Configurações</button>
+            <button id="btn-test-key" class="btn-secondary">Testar Conexão</button>
+          </div>
+
+          <div id="settings-status-box" style="margin-top: 12px; font-size: 12px; display: none;"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">
+            <span>🛡️ Sessão & Armazenamento Local</span>
+          </div>
+          <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px;">
+            O AdPilot AI utiliza uma partição dedicada do Chromium (<code>persist:adpilot_session</code>). Seus logins no Gerenciador de Anúncios da Meta, Instagram e Google Ads permanecem salvos entre sessões.
+          </p>
+          <div style="font-size: 11px; color: var(--text-dim);">
+            <strong>Versão:</strong> 1.0.0 (Native Chromium / Apple Silicon)<br>
+            <strong>Criador:</strong> Daniel Júnior Barbosa da Silva (DL MIDIA)<br>
+            <strong>Licença:</strong> MIT Open-Source
+          </div>
+        </div>
+      </div>
+
+      <!-- Rodapé do Copiloto -->
+      <footer class="copilot-footer">
+        <span>DL MIDIA • Tráfego Inteligente</span>
+        <span id="footer-status">Pronto</span>
+      </footer>
+
+    </section>
+
+  </main>
+
+  <script type="module" src="renderer.js"></script>
+</body>
+</html>
