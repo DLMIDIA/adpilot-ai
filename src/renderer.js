@@ -1,10 +1,11 @@
 /**
  * AdPilot AI - Renderer Process
- * Gerencia a interface, webview do Chromium, chamadas ao Copiloto IA e ferramentas
+ * Gerencia o Navegador Chromium, Copiloto IA, Gestão de Clientes,
+ * Cofre de Credenciais e Agendador de Conteúdo
  * Desenvolvido por: Daniel Júnior Barbosa da Silva (DL MIDIA)
  */
 
-import { SYSTEM_PROMPTS, generateLocalFallback } from './services/geminiService.js';
+import { SYSTEM_PROMPTS, buildClientContext, generateLocalFallback } from './services/geminiService.js';
 import { 
   calculateBreakEvenRoas, 
   calculateCpaTargets, 
@@ -12,12 +13,18 @@ import {
   buildUtmUrl 
 } from './services/marketingTools.js';
 
-// Estado da Aplicação
-let appSettings = {
-  geminiApiKey: '',
-  selectedModel: 'gemini-2.0-flash',
-  theme: 'dark',
-  defaultUrl: 'https://adsmanager.facebook.com'
+// Estado Global da Aplicação
+let appState = {
+  settings: {
+    geminiApiKey: '',
+    selectedModel: 'gemini-flash-latest',
+    theme: 'dark',
+    defaultUrl: 'https://adsmanager.facebook.com'
+  },
+  activeClientId: 'client-dl-midia',
+  clients: [],
+  credentials: [],
+  scheduledPosts: []
 };
 
 // Elementos da Interface
@@ -34,51 +41,707 @@ const panelBrowser = document.getElementById('panel-browser');
 const panelCopilot = document.getElementById('panel-copilot');
 const activeModelTag = document.getElementById('active-model-tag');
 const footerStatus = document.getElementById('footer-status');
+const footerClientName = document.getElementById('footer-client-name');
+const globalClientSelect = document.getElementById('global-client-select');
 
 // ===================================================================
-// 1. Inicialização & Configurações
+// 1. Inicialização & Carregamento de Dados
 // ===================================================================
 async function initApp() {
   try {
     if (window.adpilot) {
-      const saved = await window.adpilot.getSettings();
-      if (saved) {
-        appSettings = { ...appSettings, ...saved };
-        
-        // Atualizar inputs da tela de configurações
-        const keyInput = document.getElementById('settings-gemini-key');
-        const modelSelect = document.getElementById('settings-model');
-        if (keyInput) keyInput.value = appSettings.geminiApiKey || '';
-        if (modelSelect) modelSelect.value = appSettings.selectedModel || 'gemini-2.0-flash';
-        
-        updateModelTag();
+      const fullData = await window.adpilot.getAllData();
+      if (fullData) {
+        appState = {
+          ...appState,
+          ...fullData,
+          settings: { ...appState.settings, ...(fullData.settings || {}) }
+        };
       }
     }
   } catch (err) {
-    console.error('Erro ao carregar configurações:', err);
+    console.error('Erro ao carregar dados do sistema:', err);
   }
+
+  // Preencher campos da tela de ajustes
+  const keyInput = document.getElementById('settings-gemini-key');
+  const modelSelect = document.getElementById('settings-model');
+  if (keyInput) keyInput.value = appState.settings.geminiApiKey || '';
+  if (modelSelect) modelSelect.value = appState.settings.selectedModel || 'gemini-flash-latest';
 
   setupWebview();
   setupNavigation();
   setupTabs();
+  setupGlobalClientSync();
+  renderClients();
+  renderCredentials();
+  renderScheduledPosts();
   setupChat();
   setupAudit();
   setupCopyEngine();
   setupCalculators();
   setupSettingsUI();
+  updateModelTag();
+}
+
+async function persistState() {
+  if (window.adpilot) {
+    await window.adpilot.saveAllData(appState);
+  }
+}
+
+function getActiveClient() {
+  return appState.clients.find(c => c.id === appState.activeClientId) || appState.clients[0] || null;
 }
 
 function updateModelTag() {
   if (activeModelTag) {
-    const model = appSettings.selectedModel || 'gemini-2.0-flash';
-    const hasKey = !!(appSettings.geminiApiKey && appSettings.geminiApiKey.trim());
-    activeModelTag.textContent = hasKey ? `${model} (Ativo)` : 'Modo Heurístico (Sem API Key)';
+    const model = appState.settings.selectedModel || 'gemini-flash-latest';
+    const hasKey = !!(appState.settings.geminiApiKey && appState.settings.geminiApiKey.trim());
+    activeModelTag.textContent = hasKey ? `${model} (Ativo)` : 'Modo Heurístico';
     activeModelTag.style.borderColor = hasKey ? 'rgba(16, 185, 129, 0.5)' : 'rgba(245, 158, 11, 0.5)';
   }
 }
 
 // ===================================================================
-// 2. Controle do Navegador Chromium (Webview)
+// 2. Sincronização Global do Cliente Ativo
+// ===================================================================
+function setupGlobalClientSync() {
+  updateGlobalClientDropdown();
+
+  globalClientSelect?.addEventListener('change', () => {
+    appState.activeClientId = globalClientSelect.value;
+    persistState();
+    renderClients();
+    updateFooterClient();
+  });
+
+  updateFooterClient();
+}
+
+function updateGlobalClientDropdown() {
+  if (!globalClientSelect) return;
+  globalClientSelect.innerHTML = '';
+
+  appState.clients.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name;
+    if (c.id === appState.activeClientId) opt.selected = true;
+    globalClientSelect.appendChild(opt);
+  });
+
+  // Atualiza também os selects dos formulários de credenciais e posts
+  const credClientSelect = document.getElementById('cred-form-client');
+  const postClientSelect = document.getElementById('post-form-client');
+  const vaultFilterSelect = document.getElementById('vault-filter-client');
+
+  if (credClientSelect) {
+    credClientSelect.innerHTML = '';
+    appState.clients.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      credClientSelect.appendChild(opt);
+    });
+  }
+
+  if (postClientSelect) {
+    postClientSelect.innerHTML = '';
+    appState.clients.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      postClientSelect.appendChild(opt);
+    });
+  }
+
+  if (vaultFilterSelect) {
+    vaultFilterSelect.innerHTML = '<option value="ALL">Todas Empresas</option>';
+    appState.clients.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      vaultFilterSelect.appendChild(opt);
+    });
+  }
+}
+
+function updateFooterClient() {
+  const active = getActiveClient();
+  if (footerClientName) {
+    footerClientName.textContent = active ? active.name : 'DL MIDIA';
+  }
+}
+
+// ===================================================================
+// 3. Gestão de Empresas & Clientes
+// ===================================================================
+function renderClients() {
+  const container = document.getElementById('clients-list-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (appState.clients.length === 0) {
+    container.innerHTML = '<div style="color: var(--text-dim); font-size: 12px; text-align: center; padding: 20px;">Nenhuma empresa cadastrada. Clique em "+ Nova Empresa" acima.</div>';
+    return;
+  }
+
+  appState.clients.forEach(c => {
+    const isActive = c.id === appState.activeClientId;
+    const card = document.createElement('div');
+    card.className = `client-card ${isActive ? 'active-client-border' : ''}`;
+
+    card.innerHTML = `
+      <div class="client-card-header">
+        <div class="client-name">
+          <span>${c.name}</span>
+          ${isActive ? '<span class="status-ready" style="font-size: 9px; padding: 1px 6px;">Ativo</span>' : ''}
+        </div>
+        <span class="client-niche-tag">${c.niche || 'Geral'}</span>
+      </div>
+
+      <div class="client-info-row"><strong>Oferta:</strong> ${c.offer || 'Não informada'}</div>
+      <div class="client-info-row"><strong>Público:</strong> ${c.audience || 'Não informado'}</div>
+      <div class="client-info-row"><strong>Estratégia:</strong> ${c.strategy || 'Não definida'}</div>
+      <div class="client-info-row"><strong>Metas:</strong> ${c.goals || 'CPA baixo'}</div>
+      ${c.notes ? `<div class="client-info-row" style="margin-top: 4px; padding-top: 4px; border-top: 1px dashed rgba(255,255,255,0.08);"><strong>Orientação / Briefing:</strong> ${c.notes}</div>` : ''}
+
+      <div style="display: flex; gap: 6px; margin-top: 8px; justify-content: flex-end;">
+        ${!isActive ? `<button class="btn-secondary btn-select-client" data-id="${c.id}" style="font-size: 11px; padding: 3px 8px;">Definir como Ativo</button>` : ''}
+        <button class="btn-secondary btn-edit-client" data-id="${c.id}" style="font-size: 11px; padding: 3px 8px;">Editar</button>
+        ${c.id !== 'client-dl-midia' ? `<button class="btn-danger btn-delete-client" data-id="${c.id}" style="font-size: 10px; padding: 3px 6px;">Excluir</button>` : ''}
+      </div>
+    `;
+
+    // Eventos
+    card.querySelector('.btn-select-client')?.addEventListener('click', () => {
+      appState.activeClientId = c.id;
+      persistState();
+      updateGlobalClientDropdown();
+      renderClients();
+      updateFooterClient();
+    });
+
+    card.querySelector('.btn-edit-client')?.addEventListener('click', () => {
+      openClientForm(c);
+    });
+
+    card.querySelector('.btn-delete-client')?.addEventListener('click', () => {
+      if (confirm(`Deseja remover a empresa "${c.name}"?`)) {
+        appState.clients = appState.clients.filter(item => item.id !== c.id);
+        if (appState.activeClientId === c.id) {
+          appState.activeClientId = appState.clients[0]?.id || '';
+        }
+        persistState();
+        updateGlobalClientDropdown();
+        renderClients();
+        updateFooterClient();
+      }
+    });
+
+    container.appendChild(card);
+  });
+}
+
+function openClientForm(client = null) {
+  const formCard = document.getElementById('client-form-card');
+  const title = document.getElementById('client-form-title');
+  const idInput = document.getElementById('client-form-id');
+  const nameInput = document.getElementById('client-form-name');
+  const nicheInput = document.getElementById('client-form-niche');
+  const offerInput = document.getElementById('client-form-offer');
+  const audienceInput = document.getElementById('client-form-audience');
+  const strategyInput = document.getElementById('client-form-strategy');
+  const goalsInput = document.getElementById('client-form-goals');
+  const notesInput = document.getElementById('client-form-notes');
+
+  formCard.style.display = 'block';
+
+  if (client) {
+    title.textContent = 'Editar Empresa';
+    idInput.value = client.id;
+    nameInput.value = client.name || '';
+    nicheInput.value = client.niche || '';
+    offerInput.value = client.offer || '';
+    audienceInput.value = client.audience || '';
+    strategyInput.value = client.strategy || '';
+    goalsInput.value = client.goals || '';
+    notesInput.value = client.notes || '';
+  } else {
+    title.textContent = 'Cadastrar Nova Empresa';
+    idInput.value = '';
+    nameInput.value = '';
+    nicheInput.value = '';
+    offerInput.value = '';
+    audienceInput.value = '';
+    strategyInput.value = '';
+    goalsInput.value = '';
+    notesInput.value = '';
+  }
+
+  nameInput.focus();
+}
+
+document.getElementById('btn-toggle-client-form')?.addEventListener('click', () => {
+  openClientForm(null);
+});
+
+document.getElementById('btn-cancel-client-form')?.addEventListener('click', () => {
+  document.getElementById('client-form-card').style.display = 'none';
+});
+
+document.getElementById('btn-save-client')?.addEventListener('click', () => {
+  const id = document.getElementById('client-form-id').value;
+  const name = document.getElementById('client-form-name').value.trim();
+  if (!name) {
+    alert('Informe o nome da empresa.');
+    return;
+  }
+
+  const clientData = {
+    id: id || `client-${Date.now()}`,
+    name,
+    niche: document.getElementById('client-form-niche').value.trim(),
+    offer: document.getElementById('client-form-offer').value.trim(),
+    audience: document.getElementById('client-form-audience').value.trim(),
+    strategy: document.getElementById('client-form-strategy').value.trim(),
+    goals: document.getElementById('client-form-goals').value.trim(),
+    notes: document.getElementById('client-form-notes').value.trim()
+  };
+
+  const existingIndex = appState.clients.findIndex(c => c.id === clientData.id);
+  if (existingIndex >= 0) {
+    appState.clients[existingIndex] = clientData;
+  } else {
+    appState.clients.push(clientData);
+    appState.activeClientId = clientData.id;
+  }
+
+  persistState();
+  document.getElementById('client-form-card').style.display = 'none';
+  updateGlobalClientDropdown();
+  renderClients();
+  updateFooterClient();
+});
+
+// ===================================================================
+// 4. Cofre de Credenciais & Senhas
+// ===================================================================
+function renderCredentials() {
+  const container = document.getElementById('credentials-list-container');
+  const search = (document.getElementById('vault-search-input')?.value || '').toLowerCase();
+  const filterClient = document.getElementById('vault-filter-client')?.value || 'ALL';
+
+  if (!container) return;
+  container.innerHTML = '';
+
+  let list = appState.credentials;
+
+  if (filterClient !== 'ALL') {
+    list = list.filter(c => c.clientId === filterClient);
+  }
+
+  if (search) {
+    list = list.filter(c => 
+      (c.service || '').toLowerCase().includes(search) ||
+      (c.accountName || '').toLowerCase().includes(search) ||
+      (c.login || '').toLowerCase().includes(search)
+    );
+  }
+
+  if (list.length === 0) {
+    container.innerHTML = '<div style="color: var(--text-dim); font-size: 12px; text-align: center; padding: 20px;">Nenhuma credencial encontrada.</div>';
+    return;
+  }
+
+  list.forEach(cred => {
+    const client = appState.clients.find(c => c.id === cred.clientId);
+    const clientName = client ? client.name : 'Geral';
+    const card = document.createElement('div');
+    card.className = 'credential-card';
+
+    card.innerHTML = `
+      <div class="credential-header">
+        <span class="service-badge">${escapeHtml(cred.service || 'Acesso')}</span>
+        <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">🏢 ${escapeHtml(clientName)}</span>
+      </div>
+
+      <div style="font-size: 12.5px; font-weight: 700; color: #fff;">${escapeHtml(cred.accountName || 'Conta')}</div>
+
+      <div class="credential-fields">
+        <div class="cred-box">
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(cred.login)}">${escapeHtml(cred.login || 'Sem login')}</span>
+          <button class="btn-secondary btn-copy-login" style="font-size: 10px; padding: 2px 5px;">Copiar</button>
+        </div>
+
+        <div class="cred-box">
+          <span class="cred-pass-display cred-value-masked" data-pass="${escapeHtml(cred.password || '')}">••••••••</span>
+          <div style="display: flex; gap: 3px;">
+            <button class="btn-secondary btn-toggle-pass" style="font-size: 10px; padding: 2px 5px;" title="Mostrar/Ocultar Senha">👁️</button>
+            <button class="btn-secondary btn-copy-pass" style="font-size: 10px; padding: 2px 5px;">Copiar</button>
+          </div>
+        </div>
+      </div>
+
+      ${cred.twoFactorNotes ? `
+        <div style="font-size: 11px; color: #fde68a; background: var(--warning-bg); border-left: 2px solid var(--warning); padding: 4px 8px; border-radius: 3px;">
+          🔑 <strong>2FA / Notas:</strong> ${escapeHtml(cred.twoFactorNotes)}
+        </div>
+      ` : ''}
+
+      <div class="cred-actions-bar">
+        ${cred.link ? `<button class="btn-primary btn-open-cred-link" data-url="${escapeHtml(cred.link)}" style="font-size: 11px; padding: 3px 8px;">🌐 Abrir no Navegador</button>` : '<span></span>'}
+        <div style="display: flex; gap: 4px;">
+          <button class="btn-secondary btn-edit-cred" data-id="${cred.id}" style="font-size: 10px; padding: 2px 6px;">Editar</button>
+          <button class="btn-danger btn-delete-cred" data-id="${cred.id}" style="font-size: 10px; padding: 2px 5px;">Excluir</button>
+        </div>
+      </div>
+    `;
+
+    // Eventos da credencial
+    card.querySelector('.btn-copy-login')?.addEventListener('click', (e) => {
+      copyToClipboard(cred.login, e.target, 'Copiado!');
+    });
+
+    const passSpan = card.querySelector('.cred-pass-display');
+    const btnTogglePass = card.querySelector('.btn-toggle-pass');
+    let passVisible = false;
+
+    btnTogglePass?.addEventListener('click', () => {
+      passVisible = !passVisible;
+      if (passVisible) {
+        passSpan.textContent = cred.password || '(vazia)';
+        passSpan.classList.remove('cred-value-masked');
+      } else {
+        passSpan.textContent = '••••••••';
+        passSpan.classList.add('cred-value-masked');
+      }
+    });
+
+    card.querySelector('.btn-copy-pass')?.addEventListener('click', (e) => {
+      copyToClipboard(cred.password, e.target, 'Copiado!');
+    });
+
+    card.querySelector('.btn-open-cred-link')?.addEventListener('click', () => {
+      navigateTo(cred.link);
+    });
+
+    card.querySelector('.btn-edit-cred')?.addEventListener('click', () => {
+      openCredForm(cred);
+    });
+
+    card.querySelector('.btn-delete-cred')?.addEventListener('click', () => {
+      if (confirm(`Remover as credenciais de "${cred.accountName}"?`)) {
+        appState.credentials = appState.credentials.filter(c => c.id !== cred.id);
+        persistState();
+        renderCredentials();
+      }
+    });
+
+    container.appendChild(card);
+  });
+}
+
+function openCredForm(cred = null) {
+  const formCard = document.getElementById('cred-form-card');
+  const title = document.getElementById('cred-form-title');
+  const idInput = document.getElementById('cred-form-id');
+  const clientSelect = document.getElementById('cred-form-client');
+  const serviceSelect = document.getElementById('cred-form-service');
+  const nameInput = document.getElementById('cred-form-name');
+  const loginInput = document.getElementById('cred-form-login');
+  const passwordInput = document.getElementById('cred-form-password');
+  const twoFactorInput = document.getElementById('cred-form-twofactor');
+  const linkInput = document.getElementById('cred-form-link');
+
+  formCard.style.display = 'block';
+
+  if (cred) {
+    title.textContent = 'Editar Credencial';
+    idInput.value = cred.id;
+    clientSelect.value = cred.clientId || appState.activeClientId;
+    serviceSelect.value = cred.service || 'Meta Business Manager / Ads';
+    nameInput.value = cred.accountName || '';
+    loginInput.value = cred.login || '';
+    passwordInput.value = cred.password || '';
+    twoFactorInput.value = cred.twoFactorNotes || '';
+    linkInput.value = cred.link || '';
+  } else {
+    title.textContent = 'Adicionar Nova Credencial';
+    idInput.value = '';
+    clientSelect.value = appState.activeClientId;
+    nameInput.value = '';
+    loginInput.value = '';
+    passwordInput.value = '';
+    twoFactorInput.value = '';
+    linkInput.value = 'https://business.facebook.com';
+  }
+
+  nameInput.focus();
+}
+
+document.getElementById('btn-toggle-cred-form')?.addEventListener('click', () => openCredForm(null));
+document.getElementById('btn-cancel-cred-form')?.addEventListener('click', () => {
+  document.getElementById('cred-form-card').style.display = 'none';
+});
+
+document.getElementById('btn-save-cred')?.addEventListener('click', () => {
+  const id = document.getElementById('cred-form-id').value;
+  const name = document.getElementById('cred-form-name').value.trim();
+  const login = document.getElementById('cred-form-login').value.trim();
+
+  if (!name && !login) {
+    alert('Informe ao menos o nome da conta ou login.');
+    return;
+  }
+
+  const credData = {
+    id: id || `cred-${Date.now()}`,
+    clientId: document.getElementById('cred-form-client').value,
+    service: document.getElementById('cred-form-service').value,
+    accountName: name || 'Conta sem nome',
+    login: login,
+    password: document.getElementById('cred-form-password').value,
+    twoFactorNotes: document.getElementById('cred-form-twofactor').value.trim(),
+    link: document.getElementById('cred-form-link').value.trim()
+  };
+
+  const idx = appState.credentials.findIndex(c => c.id === credData.id);
+  if (idx >= 0) {
+    appState.credentials[idx] = credData;
+  } else {
+    appState.credentials.push(credData);
+  }
+
+  persistState();
+  document.getElementById('cred-form-card').style.display = 'none';
+  renderCredentials();
+});
+
+document.getElementById('vault-search-input')?.addEventListener('input', renderCredentials);
+document.getElementById('vault-filter-client')?.addEventListener('change', renderCredentials);
+
+// ===================================================================
+// 5. Agendador Inteligente de Conteúdos & Posts
+// ===================================================================
+function renderScheduledPosts() {
+  const container = document.getElementById('posts-list-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (appState.scheduledPosts.length === 0) {
+    container.innerHTML = '<div style="color: var(--text-dim); font-size: 12px; text-align: center; padding: 20px;">Nenhum post agendado. Clique em "+ Novo Post" para planejar.</div>';
+    return;
+  }
+
+  appState.scheduledPosts.forEach(post => {
+    const client = appState.clients.find(c => c.id === post.clientId);
+    const clientName = client ? client.name : 'Geral';
+    const card = document.createElement('div');
+    card.className = 'post-card';
+
+    let statusClass = 'status-idea';
+    if (post.status === 'Roteirizado') statusClass = 'status-script';
+    if (post.status === 'Gravado') statusClass = 'status-recorded';
+    if (post.status === 'Agendado') statusClass = 'status-ready';
+    if (post.status === 'Publicado') statusClass = 'status-published';
+
+    card.innerHTML = `
+      <div class="post-header">
+        <span class="post-status-badge ${statusClass}">${escapeHtml(post.status || 'Ideia')}</span>
+        <span style="font-size: 11px; color: var(--text-muted);">🏢 ${escapeHtml(clientName)} • 📅 ${escapeHtml(post.date || 'Sem data')} ${post.time ? `às ${post.time}` : ''}</span>
+      </div>
+
+      <div style="font-size: 13px; font-weight: 700; color: #fff;">${escapeHtml(post.title)}</div>
+      <div style="font-size: 11px; color: #a5b4fc;">📌 Plataforma: ${escapeHtml(post.platform)}</div>
+
+      ${post.hook ? `
+        <div class="post-hook-box">
+          <strong>🎣 Gancho (0-3s):</strong> ${escapeHtml(post.hook)}
+        </div>
+      ` : ''}
+
+      ${post.caption ? `
+        <div class="post-body" style="max-height: 80px; overflow-y: auto; background: var(--bg-surface); padding: 6px; border-radius: 4px;">
+          ${escapeHtml(post.caption)}
+        </div>
+      ` : ''}
+
+      <div style="display: flex; gap: 6px; margin-top: 6px; justify-content: flex-end;">
+        ${post.caption ? `<button class="btn-secondary btn-copy-caption" style="font-size: 10px; padding: 2px 6px;">Copiar Legenda</button>` : ''}
+        <button class="btn-secondary btn-edit-post" data-id="${post.id}" style="font-size: 10px; padding: 2px 6px;">Editar</button>
+        <button class="btn-danger btn-delete-post" data-id="${post.id}" style="font-size: 10px; padding: 2px 6px;">Excluir</button>
+      </div>
+    `;
+
+    card.querySelector('.btn-copy-caption')?.addEventListener('click', (e) => {
+      copyToClipboard(post.caption, e.target, 'Copiado!');
+    });
+
+    card.querySelector('.btn-edit-post')?.addEventListener('click', () => {
+      openPostForm(post);
+    });
+
+    card.querySelector('.btn-delete-post')?.addEventListener('click', () => {
+      if (confirm(`Remover post "${post.title}"?`)) {
+        appState.scheduledPosts = appState.scheduledPosts.filter(p => p.id !== post.id);
+        persistState();
+        renderScheduledPosts();
+      }
+    });
+
+    container.appendChild(card);
+  });
+}
+
+function openPostForm(post = null) {
+  const formCard = document.getElementById('post-form-card');
+  const title = document.getElementById('post-form-title');
+  const idInput = document.getElementById('post-form-id');
+  const clientSelect = document.getElementById('post-form-client');
+  const nameInput = document.getElementById('post-form-name');
+  const platformSelect = document.getElementById('post-form-platform');
+  const statusSelect = document.getElementById('post-form-status');
+  const dateInput = document.getElementById('post-form-date');
+  const timeInput = document.getElementById('post-form-time');
+  const hookInput = document.getElementById('post-form-hook');
+  const captionInput = document.getElementById('post-form-caption');
+
+  formCard.style.display = 'block';
+
+  if (post) {
+    title.textContent = 'Editar Post Agendado';
+    idInput.value = post.id;
+    clientSelect.value = post.clientId || appState.activeClientId;
+    nameInput.value = post.title || '';
+    platformSelect.value = post.platform || 'Instagram Reels';
+    statusSelect.value = post.status || 'Ideia';
+    dateInput.value = post.date || '';
+    timeInput.value = post.time || '18:00';
+    hookInput.value = post.hook || '';
+    captionInput.value = post.caption || '';
+  } else {
+    title.textContent = 'Planejar Novo Post';
+    idInput.value = '';
+    clientSelect.value = appState.activeClientId;
+    nameInput.value = '';
+    platformSelect.value = 'Instagram Reels';
+    statusSelect.value = 'Ideia';
+    
+    // Data de hoje
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.value = today;
+    timeInput.value = '18:00';
+    hookInput.value = '';
+    captionInput.value = '';
+  }
+
+  nameInput.focus();
+}
+
+document.getElementById('btn-toggle-post-form')?.addEventListener('click', () => openPostForm(null));
+document.getElementById('btn-cancel-post-form')?.addEventListener('click', () => {
+  document.getElementById('post-form-card').style.display = 'none';
+});
+
+document.getElementById('btn-save-post')?.addEventListener('click', () => {
+  const id = document.getElementById('post-form-id').value;
+  const title = document.getElementById('post-form-name').value.trim();
+  if (!title) {
+    alert('Informe o título ou tema do post.');
+    return;
+  }
+
+  const postData = {
+    id: id || `post-${Date.now()}`,
+    clientId: document.getElementById('post-form-client').value,
+    title: title,
+    platform: document.getElementById('post-form-platform').value,
+    status: document.getElementById('post-form-status').value,
+    date: document.getElementById('post-form-date').value,
+    time: document.getElementById('post-form-time').value,
+    hook: document.getElementById('post-form-hook').value.trim(),
+    caption: document.getElementById('post-form-caption').value.trim()
+  };
+
+  const idx = appState.scheduledPosts.findIndex(p => p.id === postData.id);
+  if (idx >= 0) {
+    appState.scheduledPosts[idx] = postData;
+  } else {
+    appState.scheduledPosts.push(postData);
+  }
+
+  persistState();
+  document.getElementById('post-form-card').style.display = 'none';
+  renderScheduledPosts();
+});
+
+// Geração de Roteiro e Legenda com IA
+document.getElementById('btn-ai-generate-post')?.addEventListener('click', async () => {
+  const btn = document.getElementById('btn-ai-generate-post');
+  const title = document.getElementById('post-form-name').value.trim();
+  const platform = document.getElementById('post-form-platform').value;
+  const clientId = document.getElementById('post-form-client').value;
+  const client = appState.clients.find(c => c.id === clientId) || getActiveClient();
+
+  if (!title) {
+    alert('Digite o título/tema do post antes de gerar com IA.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Criando Roteiro...';
+
+  const prompt = `Crie o roteiro e legenda completa para o seguinte post:
+- Título/Pauta: ${title}
+- Plataforma/Formato: ${platform}
+- Empresa: ${client ? client.name : 'DL MIDIA'}
+- Nicho: ${client ? client.niche : 'Marketing / Negócios'}
+- Oferta/Objetivo: ${client ? client.offer : 'Conversão'}
+- Persona/Dores: ${client ? client.audience : 'Empresários'}
+
+Estruture com:
+1. Frase do Gancho (Hook de 0-3 segundos).
+2. Desenvolvimento/Roteiro visual.
+3. Legenda pronta com hashtags estratégicas e CTA para o Direct/WhatsApp.`;
+
+  try {
+    let outputText = '';
+    if (appState.settings.geminiApiKey) {
+      const response = await window.adpilot.callGemini({
+        apiKey: appState.settings.geminiApiKey,
+        model: appState.settings.selectedModel,
+        systemInstruction: SYSTEM_PROMPTS.POST_SCHEDULER + buildClientContext(client),
+        prompt: prompt
+      });
+      outputText = response.success ? response.text : generateLocalFallback('post', { title, platform });
+    } else {
+      outputText = generateLocalFallback('post', { title, platform });
+    }
+
+    // Tentar extrair o gancho automaticamente
+    let extractedHook = '';
+    const hookMatch = outputText.match(/Gancho[^:]*:?\s*[\*\"]*([^\n\*\"]+)[\*\"]*/i);
+    if (hookMatch && hookMatch[1]) {
+      extractedHook = hookMatch[1].trim();
+    } else {
+      extractedHook = `O maior erro ao falar sobre ${title}...`;
+    }
+
+    document.getElementById('post-form-hook').value = extractedHook;
+    document.getElementById('post-form-caption').value = outputText;
+    document.getElementById('post-form-status').value = 'Roteirizado';
+  } catch (err) {
+    alert(`Erro ao gerar roteiro: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✨ Roteirizar com IA';
+  }
+});
+
+// ===================================================================
+// 6. Controle do Navegador Chromium (Webview)
 // ===================================================================
 function setupWebview() {
   if (!webview) return;
@@ -108,7 +771,6 @@ function setupWebview() {
 }
 
 function setupNavigation() {
-  // Botões de histórico
   btnBack?.addEventListener('click', () => {
     if (webview && webview.canGoBack()) webview.goBack();
   });
@@ -125,7 +787,6 @@ function setupNavigation() {
     navigateTo('https://adsmanager.facebook.com');
   });
 
-  // Digitar URL e ir
   const handleNavigate = () => {
     let url = urlInput.value.trim();
     if (!url) return;
@@ -144,7 +805,6 @@ function setupNavigation() {
     if (e.key === 'Enter') handleNavigate();
   });
 
-  // Chips de Atalho
   document.querySelectorAll('.preset-chip').forEach(chip => {
     chip.addEventListener('click', () => {
       const targetUrl = chip.getAttribute('data-url');
@@ -152,8 +812,7 @@ function setupNavigation() {
     });
   });
 
-  // Alternar tela dividida
-  let splitState = 0; // 0: 60/40, 1: 100/0, 2: 40/60
+  let splitState = 0;
   btnToggleSplit?.addEventListener('click', () => {
     splitState = (splitState + 1) % 3;
     if (splitState === 0) {
@@ -172,7 +831,7 @@ function setupNavigation() {
 }
 
 function navigateTo(url) {
-  if (webview) {
+  if (webview && url) {
     webview.src = url;
     urlInput.value = url;
     highlightActivePreset(url);
@@ -191,7 +850,7 @@ function highlightActivePreset(url) {
 }
 
 // ===================================================================
-// 3. Controle de Abas do Copiloto
+// 7. Controle de Abas
 // ===================================================================
 function setupTabs() {
   const tabButtons = document.querySelectorAll('.copilot-tab-btn');
@@ -200,7 +859,6 @@ function setupTabs() {
   tabButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const targetId = btn.getAttribute('data-tab');
-      
       tabButtons.forEach(b => b.classList.remove('active'));
       tabContents.forEach(c => c.classList.remove('active'));
 
@@ -212,7 +870,7 @@ function setupTabs() {
 }
 
 // ===================================================================
-// 4. Chat do Copiloto IA (Media Buyer)
+// 8. Chat do Copiloto Media Buyer (com contexto da empresa ativa)
 // ===================================================================
 function setupChat() {
   const chatMessages = document.getElementById('chat-messages');
@@ -223,39 +881,27 @@ function setupChat() {
     const prompt = (userText || chatInput.value || '').trim();
     if (!prompt) return;
 
-    // Adicionar mensagem do usuário
     appendChatMessage('user', prompt);
     chatInput.value = '';
 
-    // Adicionar placeholder de carregamento da IA
-    const loadingBubble = appendChatMessage('ai', 'Pensando na melhor estratégia de tráfego...');
+    const activeClient = getActiveClient();
+    const clientName = activeClient ? activeClient.name : 'DL MIDIA';
+    const loadingBubble = appendChatMessage('ai', `Pensando estrategicamente para ${clientName}...`);
 
     try {
-      if (appSettings.geminiApiKey && appSettings.geminiApiKey.trim()) {
-        const response = await window.adpilot.callGemini({
-          apiKey: appSettings.geminiApiKey,
-          model: appSettings.selectedModel,
-          systemInstruction: SYSTEM_PROMPTS.MEDIA_BUYER,
-          prompt: prompt
-        });
+      const systemInst = SYSTEM_PROMPTS.MEDIA_BUYER + buildClientContext(activeClient);
 
-        if (response.success) {
-          loadingBubble.innerHTML = parseMarkdown(response.text);
-        } else {
-          loadingBubble.innerHTML = `<span style="color: var(--danger);">⚠️ ${response.error}</span>`;
-        }
+      const response = await window.adpilot.callGemini({
+        apiKey: appState.settings.geminiApiKey,
+        model: appState.settings.selectedModel,
+        systemInstruction: systemInst,
+        prompt: prompt
+      });
+
+      if (response.success) {
+        loadingBubble.innerHTML = parseMarkdown(response.text);
       } else {
-        // Fallback Heurístico local
-        setTimeout(() => {
-          loadingBubble.innerHTML = parseMarkdown(
-            `> [!NOTE] Copiloto em Modo Heurístico Local (Chave Gemini não configurada).\n\n` +
-            `Para responder com raciocínio profundo e análise sob medida para o seu nicho, adicione sua chave nas **Configurações**.\n\n` +
-            `**Dica Estratégica Imediata:**\n` +
-            `- **Métricas:** Mantenha o foco em CPA e ROAS antes de olhar métricas secundárias.\n` +
-            `- **Escala:** Nunca escale mais de 20% do orçamento em menos de 48h no CBO para não resetar o aprendizado da Meta.\n` +
-            `- **Criativos:** Se o CTR estiver abaixo de 1%, o problema está no Hook de 3 segundos.`
-          );
-        }, 500);
+        loadingBubble.innerHTML = `<span style="color: var(--danger);">⚠️ ${response.error}</span>`;
       }
     } catch (err) {
       loadingBubble.innerHTML = `<span style="color: var(--danger);">Erro: ${err.message}</span>`;
@@ -272,7 +918,6 @@ function setupChat() {
     }
   });
 
-  // Quick Prompt Pills
   document.querySelectorAll('.quick-prompt-pill').forEach(pill => {
     pill.addEventListener('click', () => {
       const prompt = pill.getAttribute('data-prompt');
@@ -292,7 +937,7 @@ function appendChatMessage(role, text) {
 }
 
 // ===================================================================
-// 5. Auditoria de Perfil do Instagram
+// 9. Auditoria de Perfil do Instagram
 // ===================================================================
 function setupAudit() {
   const btnFillCurrent = document.getElementById('btn-fill-current-url');
@@ -305,7 +950,6 @@ function setupAudit() {
   const auditResultContent = document.getElementById('audit-result-content');
   const btnCopyAudit = document.getElementById('btn-copy-audit');
 
-  // Preencher perfil atual se a webview estiver no Instagram
   btnFillCurrent?.addEventListener('click', () => {
     try {
       const currentUrl = webview.getURL();
@@ -316,6 +960,9 @@ function setupAudit() {
         }
       }
     } catch (e) {}
+
+    const client = getActiveClient();
+    if (client && !auditNiche.value) auditNiche.value = client.niche || '';
   });
 
   btnRunAudit?.addEventListener('click', async () => {
@@ -329,21 +976,23 @@ function setupAudit() {
     auditResultBox.style.display = 'block';
     auditResultContent.innerHTML = 'Conectando ao modelo de raciocínio de tráfego...';
 
+    const client = getActiveClient();
     const prompt = `Analise este perfil comercial para otimização de tráfego pago e conversão:
 - Perfil: ${handle}
 - Nicho: ${niche}
 - Objetivo Principal: ${goal}
-- Bio / Observações: ${bio || 'Não informada detalhadamente, analise o perfil com base nas melhores práticas do nicho.'}
+- Bio / Observações: ${bio || 'Não informada detalhadamente.'}
+${client ? `- Empresa Vinculada: ${client.name} (Oferta: ${client.offer})` : ''}
 
 Forneça a auditoria em 4 etapas práticas (Diagnóstico UVP, Funil da Bio, Conteúdos com Potencial de Dark Post, Plano de Ação Imediato de Tráfego Pago).`;
 
     try {
       let resultMarkdown = '';
-      if (appSettings.geminiApiKey && appSettings.geminiApiKey.trim()) {
+      if (appState.settings.geminiApiKey) {
         const response = await window.adpilot.callGemini({
-          apiKey: appSettings.geminiApiKey,
-          model: appSettings.selectedModel,
-          systemInstruction: SYSTEM_PROMPTS.PROFILE_AUDITOR,
+          apiKey: appState.settings.geminiApiKey,
+          model: appState.settings.selectedModel,
+          systemInstruction: SYSTEM_PROMPTS.PROFILE_AUDITOR + buildClientContext(client),
           prompt: prompt
         });
         resultMarkdown = response.success ? response.text : `Erro: ${response.error}`;
@@ -366,9 +1015,10 @@ Forneça a auditoria em 4 etapas práticas (Diagnóstico UVP, Funil da Bio, Cont
 }
 
 // ===================================================================
-// 6. Gerador de Criativos & Copy
+// 10. Gerador de Criativos & Copy
 // ===================================================================
 function setupCopyEngine() {
+  const btnFillClient = document.getElementById('btn-fill-client-copy');
   const copyProduct = document.getElementById('copy-product');
   const copyAudience = document.getElementById('copy-audience');
   const copyFramework = document.getElementById('copy-framework');
@@ -377,6 +1027,15 @@ function setupCopyEngine() {
   const copyResultBox = document.getElementById('copy-result-box');
   const copyResultContent = document.getElementById('copy-result-content');
   const btnCopyGenerated = document.getElementById('btn-copy-generated');
+
+  btnFillClient?.addEventListener('click', () => {
+    const client = getActiveClient();
+    if (client) {
+      copyProduct.value = client.offer || client.name;
+      copyAudience.value = client.audience || '';
+      copyOffer.value = client.goals || 'Condição especial de fechamento';
+    }
+  });
 
   btnGenerateCopy?.addEventListener('click', async () => {
     const product = copyProduct.value.trim() || 'Produto / Solução';
@@ -389,6 +1048,7 @@ function setupCopyEngine() {
     copyResultBox.style.display = 'block';
     copyResultContent.innerHTML = 'Elaborando ganchos de alta retenção e copies persuasivas...';
 
+    const client = getActiveClient();
     const prompt = `Gere criativos de alta conversão para anúncios da Meta (Instagram/Facebook):
 - Produto/Serviço: ${product}
 - Público-Alvo & Dores: ${audience}
@@ -399,11 +1059,11 @@ Siga rigorosamente a estrutura com 3 Ganchos (0-3s), 2 Copies Primárias, 2 Tít
 
     try {
       let resultMarkdown = '';
-      if (appSettings.geminiApiKey && appSettings.geminiApiKey.trim()) {
+      if (appState.settings.geminiApiKey) {
         const response = await window.adpilot.callGemini({
-          apiKey: appSettings.geminiApiKey,
-          model: appSettings.selectedModel,
-          systemInstruction: SYSTEM_PROMPTS.COPY_ENGINE,
+          apiKey: appState.settings.geminiApiKey,
+          model: appState.settings.selectedModel,
+          systemInstruction: SYSTEM_PROMPTS.COPY_ENGINE + buildClientContext(client),
           prompt: prompt
         });
         resultMarkdown = response.success ? response.text : `Erro: ${response.error}`;
@@ -426,10 +1086,9 @@ Siga rigorosamente a estrutura com 3 Ganchos (0-3s), 2 Copies Primárias, 2 Tít
 }
 
 // ===================================================================
-// 7. Calculadoras & Matriz Kill or Scale
+// 11. Calculadoras & Métricas de Tráfego
 // ===================================================================
 function setupCalculators() {
-  // Calculadora ROAS & CPA
   const calcTicket = document.getElementById('calc-ticket');
   const calcMargin = document.getElementById('calc-margin');
   const calcTargetProfit = document.getElementById('calc-target-profit');
@@ -470,7 +1129,6 @@ function setupCalculators() {
   const decisionReasons = document.getElementById('decision-result-reasons');
 
   btnEvalDecision?.addEventListener('click', () => {
-    // Usa o CPA alvo da calculadora acima
     const ticket = parseFloat(calcTicket.value) || 150;
     const margin = parseFloat(calcMargin.value) || 50;
     const targetProfit = parseFloat(calcTargetProfit.value) || 20;
@@ -498,12 +1156,11 @@ function setupCalculators() {
     decisionCard.style.display = 'block';
   });
 
-  // Gerador de UTMs
+  // Gerador de UTM
   const utmUrl = document.getElementById('utm-url');
   const utmSource = document.getElementById('utm-source');
   const utmMedium = document.getElementById('utm-medium');
   const utmCampaign = document.getElementById('utm-campaign');
-  const utmContent = document.getElementById('utm-content');
   const btnGenerateUtm = document.getElementById('btn-generate-utm');
   const utmContainer = document.getElementById('utm-output-container');
   const utmFinalUrl = document.getElementById('utm-final-url');
@@ -512,7 +1169,7 @@ function setupCalculators() {
   btnGenerateUtm?.addEventListener('click', () => {
     const rawUrl = utmUrl.value.trim();
     if (!rawUrl) {
-      alert('Por favor, informe a URL da página de destino.');
+      alert('Informe a URL da página de destino.');
       return;
     }
 
@@ -521,7 +1178,7 @@ function setupCalculators() {
       source: utmSource.value.trim(),
       medium: utmMedium.value.trim(),
       campaign: utmCampaign.value.trim(),
-      content: utmContent.value.trim()
+      content: '{{ad.name}}'
     });
 
     utmFinalUrl.value = finalUrl;
@@ -534,7 +1191,7 @@ function setupCalculators() {
 }
 
 // ===================================================================
-// 8. Tela de Configurações & Teste de Conexão com Google Gemini
+// 12. Configurações da API Gemini
 // ===================================================================
 function setupSettingsUI() {
   const keyInput = document.getElementById('settings-gemini-key');
@@ -542,54 +1199,30 @@ function setupSettingsUI() {
   const btnSave = document.getElementById('btn-save-settings');
   const btnTest = document.getElementById('btn-test-key');
   const statusBox = document.getElementById('settings-status-box');
-  const linkAiStudio = document.getElementById('link-ai-studio');
-
-  linkAiStudio?.addEventListener('click', (e) => {
-    e.preventDefault();
-    if (window.adpilot) {
-      window.adpilot.openExternal('https://aistudio.google.com/app/apikey');
-    }
-  });
 
   btnSave?.addEventListener('click', async () => {
     const key = keyInput.value.trim();
     const model = modelSelect.value;
 
-    const res = await window.adpilot.saveSettings({
-      geminiApiKey: key,
-      selectedModel: model
-    });
+    appState.settings.geminiApiKey = key;
+    appState.settings.selectedModel = model;
 
-    if (res.success) {
-      appSettings.geminiApiKey = key;
-      appSettings.selectedModel = model;
-      updateModelTag();
+    await persistState();
+    updateModelTag();
 
-      statusBox.style.display = 'block';
-      statusBox.style.color = 'var(--success)';
-      statusBox.textContent = '✓ Configurações salvas localmente com sucesso!';
-      setTimeout(() => { statusBox.style.display = 'none'; }, 4000);
-    } else {
-      statusBox.style.display = 'block';
-      statusBox.style.color = 'var(--danger)';
-      statusBox.textContent = `Erro ao salvar: ${res.error}`;
-    }
+    statusBox.style.display = 'block';
+    statusBox.style.color = 'var(--success)';
+    statusBox.textContent = '✓ Configurações salvas localmente com sucesso!';
+    setTimeout(() => { statusBox.style.display = 'none'; }, 4000);
   });
 
   btnTest?.addEventListener('click', async () => {
     const key = keyInput.value.trim();
-    if (!key) {
-      statusBox.style.display = 'block';
-      statusBox.style.color = 'var(--warning)';
-      statusBox.textContent = 'Insira uma chave antes de testar.';
-      return;
-    }
-
     btnTest.disabled = true;
     btnTest.textContent = 'Testando...';
     statusBox.style.display = 'block';
     statusBox.style.color = 'var(--text-muted)';
-    statusBox.textContent = 'Enviando ping de teste para a Google Gemini API...';
+    statusBox.textContent = 'Enviando teste para a Google Gemini API...';
 
     const res = await window.adpilot.testGeminiKey({ apiKey: key });
 
@@ -610,6 +1243,7 @@ function setupSettingsUI() {
 // Utilitários de Interface & Markdown
 // ===================================================================
 function copyToClipboard(text, buttonElement, feedbackText = 'Copiado!') {
+  if (!text) return;
   navigator.clipboard.writeText(text).then(() => {
     const originalText = buttonElement.textContent;
     buttonElement.textContent = feedbackText;
@@ -620,7 +1254,8 @@ function copyToClipboard(text, buttonElement, feedbackText = 'Copiado!') {
 }
 
 function escapeHtml(str) {
-  return str
+  if (!str) return '';
+  return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
@@ -630,32 +1265,19 @@ function parseMarkdown(md) {
   if (!md) return '';
 
   let html = md;
-
-  // Bloco de Callout GitHub
   html = html.replace(/> \[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\] ([^\n]+)/g, '<blockquote><strong>$1:</strong> $2</blockquote>');
-
-  // Headings
   html = html.replace(/^#### (.*$)/gim, '<h4>$1</h4>');
   html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
   html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
   html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
-
-  // Bold & Italic
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-
-  // Code inline
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-  // Listas
   html = html.replace(/^\- (.*$)/gim, '<li>$1</li>');
   html = html.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>');
-
-  // Quebras de Linha
   html = html.replace(/\n\n/g, '<br><br>');
 
   return html;
 }
 
-// Inicia aplicação após carregamento da janela
 window.addEventListener('DOMContentLoaded', initApp);

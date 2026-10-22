@@ -6,6 +6,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('adpilot', {
+  getAllData: () => ipcRenderer.invoke('storage:get-all'),
+  saveAllData: (data) => ipcRenderer.invoke('storage:save-all', data),
   getSettings: () => ipcRenderer.invoke('storage:get-settings'),
   saveSettings: (data) => ipcRenderer.invoke('storage:save-settings', data),
   callGemini: (params) => ipcRenderer.invoke('gemini:call', params),

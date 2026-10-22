@@ -34,16 +34,34 @@ Para qualquer oferta fornecida, gere sempre:
 4. Briefing Visual / Direção de Arte para o criativo (o que mostrar na tela).
 5. Chamada para Ação (CTA clara).`,
 
-  COMPETITOR_SPY: `Você é um Engenheiro Reverso de Criativos de Tráfego Pago e Espião da Biblioteca de Anúncios da Meta (Ad Library).
-Sua função é dissecar anúncios de concorrentes e revelar:
-- Qual é o Mecanismo Único e a Promessa Central.
-- Qual dor ou ambição do público-alvo está sendo explorada.
-- Por que esse criativo provavelmente está escalando (tempo ativo na biblioteca, variações de formato).
-- Como modelar eticamente e criar uma versão SUPERIOR para a nossa marca sem copiar.`
+  POST_SCHEDULER: `Você é um Estrategista de Conteúdo e Tráfego Pago especializado em Roteiros e Postagens de Alto Engajamento para Redes Sociais (Instagram Reels, Carrosséis, Stories e Dark Posts da Meta).
+Para a pauta/tema solicitada, gere:
+1. 🎣 GANCHO DE 0 A 3 SEGUNDOS (Hook irresistível para prender a atenção nos primeiros segundos de rolagem de tela).
+2. 🎬 ROTEIRO / CORPO DO CONTEÚDO (Desenvolvimento rápido, dinâmico e focado em gerar valor e autoridade).
+3. 📝 LEGENDA PERSUASIVA (Pronta para publicação, formatada com quebras de linha limpas, emojis e hashtags estratégicas).
+4. 🚀 CHAMADA PARA AÇÃO (CTA direcionando para o Direct, WhatsApp ou Link da Bio).`
 };
 
 /**
- * Heurística de Resposta Local (Fallback Inteligente quando a API Key ainda não foi inserida)
+ * Constrói o contexto da empresa/cliente ativo para enriquecer qualquer prompt
+ */
+export function buildClientContext(client) {
+  if (!client) return '';
+  return `
+[CONTEXTO DO CLIENTE / EMPRESA ATIVA]:
+- Nome da Empresa: ${client.name || 'Não informado'}
+- Nicho de Atuação: ${client.niche || 'Geral'}
+- Oferta Principal / Ticket: ${client.offer || 'Não especificada'}
+- Público-Alvo e Dores: ${client.audience || 'Não especificado'}
+- Estratégia de Tráfego: ${client.strategy || 'Foco em conversão direta'}
+- Metas: ${client.goals || 'CPA baixo e alto ROI'}
+- Orientações & Notas: ${client.notes || 'Nenhuma'}
+Utilize estritamente esse contexto para personalizar suas respostas, termos e exemplos para este negócio.
+`;
+}
+
+/**
+ * Heurística de Resposta Local (Fallback Inteligente)
  */
 export function generateLocalFallback(type, payload = {}) {
   switch (type) {
@@ -51,22 +69,21 @@ export function generateLocalFallback(type, payload = {}) {
       const handle = payload.handle || '@perfil';
       const niche = payload.niche || 'Geral';
       return `### 🔍 Auditoria Estratégica do Perfil: ${handle} (Modo Heurístico)
-> [!NOTE] Dica: Para análises em tempo real com deep reasoning, adicione sua chave do Google Gemini nas Configurações.
 
 #### 1. Diagnóstico da Proposta Única de Valor (Bio & Header)
 - **Posicionamento**: O perfil precisa responder em menos de 3 segundos: *Quem você ajuda? Qual resultado entrega? Como contratar?*
-- **Gargalo Típico no Nicho (${niche})**: Bios genéricas ("Ajudamos você a crescer") sem métricas concretas ou diferenciais claros.
-- **Link na Bio**: Evite árvores de links com mais de 3 opções. Foque em 1 ação principal (ex: WhatsApp Direto ou Agendamento).
+- **Gargalo Típico no Nicho (${niche})**: Bios genéricas sem métricas concretas ou diferenciais claros.
+- **Link na Bio**: Evite árvores de links com mais de 3 opções. Foque em 1 ação principal (WhatsApp Direto ou Agendamento).
 
 #### 2. Destaques Essenciais para Tráfego Pago
-- **Quem Somos**: Histórico, bastidores e credibilidade.
+- **Quem Somos**: Histórico, bastidores e credibilidade da DL MIDIA.
 - **Resultados / Depoimentos**: Provas sociais em vídeo aumentam a conversão de tráfego em até 40%.
 - **Como Funciona / Oferta**: Explicação sem rodeios do produto ou serviço.
 
 #### 3. Plano de Ação para Tráfego Pago
-1. **Campanha de Engajamento para o Direct**: Rodar anúncio em Reels com CTA "Envie 'QUERO' no Direct" para iniciar conversas com leads qualificados.
-2. **Público Personalizado (Custom Audience)**: Criar público de quem interagiu com o Instagram nos últimos 90 dias e rodar anúncio de oferta direta.
-3. **Público Semelhante (Lookalike 1%)**: Gerar público semelhante da lista de clientes ou quem enviou mensagem nos últimos 30 dias.`;
+1. **Campanha de Engajamento para o Direct**: Anúncio em Reels com CTA "Envie 'QUERO' no Direct".
+2. **Público Personalizado**: Quem interagiu com o Instagram nos últimos 90 dias.
+3. **Público Semelhante (Lookalike 1%)**: Gerar a partir da lista de clientes.`;
     }
 
     case 'copy': {
@@ -84,36 +101,37 @@ export function generateLocalFallback(type, payload = {}) {
 
 ---
 
-#### 📝 Copy Primária 1 (Direta & Focada em Dor - AIDA)
+#### 📝 Copy Primária 1 (Direta & Focada em Dor)
 **Atenção:** Você sente que está se esforçando o dobro para ter metade do resultado com ${product}?
-**Interesse:** O segredo não é trabalhar mais horas, e sim usar o método certo validado no mercado.
-**Desejo:** Imagine ter previsibilidade, segurança e ver seus resultados crescerem consistentemente toda semana.
-**Ação:** Toque no botão 'Saiba Mais' abaixo e descubra a condição exclusiva preparada para você hoje.
-
----
-
-#### 📌 Títulos (Headlines para o Botão do Anúncio)
-- **Opção 1:** Domine ${product} de Forma Prática
-- **Opção 2:** Vagas Limitadas — Comece Agora
-
----
-
-#### 🎨 Briefing Visual para Designer / Editor
-- **Cena 1 (0-3s):** Pessoa frustrada na tela com expressão séria ou texto grande com fundo amarelo piscando.
-- **Cena 2 (3-8s):** Demonstração visual do método / bastidores da solução.
-- **Cena 3 (8-15s):** Depoimentos rápidos na tela + CTA com seta apontando para o botão do anúncio.`;
+**Interesse:** O segredo não é trabalhar mais horas, e sim usar o método validado no mercado.
+**Desejo:** Imagine ter previsibilidade, segurança e ver seus resultados crescerem consistentemente.
+**Ação:** Toque no botão 'Saiba Mais' abaixo e descubra a condição exclusiva preparada para você hoje.`;
     }
 
-    case 'spy': {
-      const term = payload.term || 'Anúncio Concorrente';
-      return `### 🕵️ Análise de Espionagem de Anúncio: ${term}
-- **Promessa:** Oferta com forte alavancagem de tempo ou redução de custo.
-- **Formato:** Vídeo vertical estilo UGC (User Generated Content) gravado em smartphone. Vídeos mais naturais geram até 3x mais CTR que produções corporativas estáticas.
-- **Ponto Forte:** O gancho nos primeiros 2 segundos prende a atenção antes de mencionar a marca.
-- **Como Superar:** Produzir um criativo com gancho similar, porém inserindo um comparativo lado a lado e uma garantia incondicional mais forte.`;
+    case 'post': {
+      const title = payload.title || 'Conteúdo Estratégico';
+      const platform = payload.platform || 'Instagram Reels';
+      return `### 📅 Roteiro de Post Gerado: ${title} (${platform})
+
+#### 🎣 Gancho de 0 a 3 Segundos
+*"Se você é empresário e ainda não usa essa estratégia no seu negócio, você está perdendo clientes todos os dias para o seu concorrente."*
+
+#### 🎬 Desenvolvimento / Roteiro
+- **Cena 1 (3-7s):** Mostre o problema clássico na prática (ex: contas de anúncio desreguladas ou direct vazio).
+- **Cena 2 (7-18s):** Explique o mecanismo correto: focar em criativos magnéticos e direcionar o lead para uma conversa 1 a 1 no WhatsApp.
+- **Cena 3 (18-25s):** Apresente a solução implementada pela DL MIDIA com previsibilidade de resultados.
+
+#### 📝 Legenda Pronta
+Você já percebeu que postar todo dia sem uma estratégia de tráfego pago por trás é como abrir uma loja no meio do deserto? 🏜️
+
+Para vender com consistência, você precisa atrair as pessoas certas na hora certa.
+
+👉 Salve este post para consultar depois e comente "ESCALA" para receber uma análise do seu perfil no Direct!
+
+#trafegopago #metaads #instagramparanegocios #marketingdigital #dlmidia`;
     }
 
     default:
-      return `AdPilot AI Copiloto pronto para ajudar no tráfego pago da sua empresa. Digite sua dúvida ou selecione uma ferramenta acima.`;
+      return `AdPilot AI Copiloto pronto para ajudar no tráfego pago da sua empresa.`;
   }
 }

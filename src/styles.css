@@ -22,6 +22,7 @@
   --danger-bg: rgba(239, 68, 68, 0.15);
   --success-bg: rgba(16, 185, 129, 0.15);
   --warning-bg: rgba(245, 158, 11, 0.15);
+  --purple-glow: rgba(168, 85, 247, 0.25);
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -93,7 +94,7 @@ body {
 
 .url-bar-container {
   flex: 1;
-  max-width: 520px;
+  max-width: 420px;
   display: flex;
   align-items: center;
   background-color: var(--bg-input);
@@ -152,6 +153,34 @@ body {
   border-color: var(--primary);
 }
 
+/* Seletor Global de Empresa no Header */
+.client-selector-header {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #c7d2fe;
+}
+
+.client-header-select {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+.client-header-select option {
+  background-color: var(--bg-surface);
+  color: var(--text-main);
+}
+
 .header-actions {
   display: flex;
   align-items: center;
@@ -203,8 +232,8 @@ body {
   flex-direction: column;
   background-color: var(--bg-surface);
   border-left: 1px solid var(--border-subtle);
-  min-width: 420px;
-  max-width: 680px;
+  min-width: 460px;
+  max-width: 720px;
 }
 
 /* Webview */
@@ -237,7 +266,7 @@ webview {
    Copiloto IA - Painel Lateral Direito
    =================================================================== */
 .copilot-header {
-  padding: 12px 16px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
@@ -255,7 +284,7 @@ webview {
 }
 
 .copilot-title {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
   letter-spacing: -0.2px;
   color: #fff;
@@ -276,8 +305,8 @@ webview {
   display: flex;
   background-color: var(--bg-base);
   border-bottom: 1px solid var(--border-subtle);
-  padding: 6px 10px 0 10px;
-  gap: 4px;
+  padding: 4px 8px 0 8px;
+  gap: 2px;
   overflow-x: auto;
 }
 
@@ -285,14 +314,14 @@ webview {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
-  padding: 8px 12px;
+  padding: 7px 9px;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   transition: all 0.15s;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
@@ -336,15 +365,15 @@ webview {
 }
 
 .form-group {
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
 
 .form-label {
-  font-size: 11.5px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -355,8 +384,8 @@ webview {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   color: var(--text-main);
-  padding: 8px 10px;
-  font-size: 13px;
+  padding: 7px 10px;
+  font-size: 12.5px;
   font-family: inherit;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -369,7 +398,7 @@ webview {
 }
 
 .form-textarea {
-  min-height: 75px;
+  min-height: 70px;
   resize: vertical;
 }
 
@@ -378,8 +407,8 @@ webview {
   color: #fff;
   border: none;
   border-radius: var(--radius-sm);
-  padding: 9px 14px;
-  font-size: 13px;
+  padding: 8px 12px;
+  font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
@@ -402,14 +431,14 @@ webview {
   color: var(--text-main);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  font-size: 12px;
+  padding: 6px 10px;
+  font-size: 11.5px;
   font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   transition: all 0.15s;
 }
 
@@ -418,12 +447,189 @@ webview {
   border-color: #4b5563;
 }
 
+.btn-danger {
+  background-color: var(--danger-bg);
+  color: #fca5a5;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .card {
   background-color: var(--bg-base);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: 14px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
+}
+
+/* ===================================================================
+   Cards de Empresas & Clientes
+   =================================================================== */
+.client-card {
+  background-color: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  position: relative;
+  transition: border-color 0.15s;
+}
+
+.client-card.active-client-border {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.client-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.client-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.client-niche-tag {
+  font-size: 10.5px;
+  background-color: var(--bg-surface-elevated);
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
+.client-info-row {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.client-info-row strong {
+  color: #e2e8f0;
+}
+
+/* ===================================================================
+   Cards do Cofre de Senhas / Credenciais
+   =================================================================== */
+.credential-card {
+  background-color: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.credential-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.service-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background-color: var(--primary-glow);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+}
+
+.credential-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.cred-box {
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  user-select: text;
+}
+
+.cred-value-masked {
+  font-family: monospace;
+  letter-spacing: 2px;
+}
+
+.cred-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ===================================================================
+   Cards do Agendador de Conteúdo / Posts
+   =================================================================== */
+.post-card {
+  background-color: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.post-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.post-status-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.status-idea { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid #3b82f6; }
+.status-script { background: rgba(99, 102, 241, 0.2); color: #c7d2fe; border: 1px solid #6366f1; }
+.status-recorded { background: rgba(245, 158, 11, 0.2); color: #fde68a; border: 1px solid #f59e0b; }
+.status-ready { background: rgba(168, 85, 247, 0.2); color: #e9d5ff; border: 1px solid #a855f7; }
+.status-published { background: rgba(16, 185, 129, 0.2); color: #a7f3d0; border: 1px solid #10b981; }
+
+.post-body {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  user-select: text;
+}
+
+.post-hook-box {
+  background-color: var(--bg-input);
+  border-left: 3px solid var(--primary);
+  padding: 6px 8px;
+  font-size: 11.5px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  margin: 4px 0;
 }
 
 /* ===================================================================
@@ -446,10 +652,10 @@ webview {
 }
 
 .chat-bubble {
-  max-width: 90%;
+  max-width: 92%;
   padding: 10px 14px;
   border-radius: var(--radius-md);
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.5;
 }
 
@@ -470,10 +676,10 @@ webview {
 
 .quick-prompts-bar {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   overflow-x: auto;
-  padding: 6px 0;
-  margin-bottom: 8px;
+  padding: 4px 0;
+  margin-bottom: 6px;
 }
 
 .quick-prompt-pill {
@@ -481,7 +687,7 @@ webview {
   background-color: var(--bg-surface-elevated);
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
-  padding: 4px 9px;
+  padding: 4px 8px;
   border-radius: 12px;
   cursor: pointer;
   white-space: nowrap;
@@ -523,8 +729,8 @@ webview {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: 14px;
-  margin-top: 14px;
-  font-size: 13px;
+  margin-top: 12px;
+  font-size: 12.5px;
   line-height: 1.55;
   user-select: text;
   max-height: 480px;
@@ -569,31 +775,11 @@ webview {
   border: 1px solid var(--border-subtle);
 }
 
-.badge-kill {
-  background-color: var(--danger-bg);
-  border-color: var(--danger);
-  color: #fca5a5;
-}
+.badge-kill { background-color: var(--danger-bg); border-color: var(--danger); color: #fca5a5; }
+.badge-scale { background-color: var(--success-bg); border-color: var(--success); color: #6ee7b7; }
+.badge-optimize { background-color: var(--warning-bg); border-color: var(--warning); color: #fcd34d; }
+.badge-monitor { background-color: var(--primary-glow); border-color: var(--primary); color: #a5b4fc; }
 
-.badge-scale {
-  background-color: var(--success-bg);
-  border-color: var(--success);
-  color: #6ee7b7;
-}
-
-.badge-optimize {
-  background-color: var(--warning-bg);
-  border-color: var(--warning);
-  color: #fcd34d;
-}
-
-.badge-monitor {
-  background-color: var(--primary-glow);
-  border-color: var(--primary);
-  color: #a5b4fc;
-}
-
-/* Grid de Métricas */
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

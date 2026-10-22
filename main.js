@@ -2,8 +2,8 @@
  * AdPilot AI - Navegador Integrado Inteligente com Copiloto IA para Tráfego Pago
  * Desenvolvido por: Daniel Júnior Barbosa da Silva (DL MIDIA)
  *
- * Main Process do Electron com sessão Chromium persistente para Meta Ads,
- * Instagram, Google Ads e integração direta com a API do Google Gemini.
+ * Main Process com sessão Chromium persistente, cofre de senhas/credenciais,
+ * gestão de clientes/empresas, agendamento de posts e API Google Gemini.
  */
 
 const { app, BrowserWindow, ipcMain, session, shell } = require('electron');
@@ -12,43 +12,110 @@ const fs = require('fs');
 
 let mainWindow = null;
 
-// Caminho do arquivo de configuração persistente
+// Chave padrão carregada de variável de ambiente ou configuração local segura
+const DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY || '';
+const DEFAULT_MODEL = 'gemini-flash-latest';
+
 function getConfigPath() {
   return path.join(app.getPath('userData'), 'adpilot_settings.json');
 }
 
-function loadSavedSettings() {
+function getDefaultData() {
+  return {
+    settings: {
+      geminiApiKey: DEFAULT_GEMINI_KEY,
+      selectedModel: DEFAULT_MODEL,
+      theme: 'dark',
+      defaultUrl: 'https://adsmanager.facebook.com'
+    },
+    activeClientId: 'client-dl-midia',
+    clients: [
+      {
+        id: 'client-dl-midia',
+        name: 'DL MIDIA',
+        niche: 'Agência de Marketing Digital & Tráfego Pago',
+        offer: 'Gestão Completa de Tráfego Pago, Escala de Anúncios e IA para Vendas',
+        audience: 'Empresários, e-commerces, clínicas e profissionais que desejam previsibilidade e vendas diárias',
+        strategy: 'Captação ativa de clientes via Click-to-WhatsApp, anúncios com quebra de padrão em Reels e autoridade',
+        goals: 'CPA máximo R$ 40,00 por lead qualificado, 60 reuniões comerciais no mês',
+        notes: 'Nossa própria agência. Foco em posicionamento de alto valor, automações inteligentes e cases reais.'
+      }
+    ],
+    credentials: [
+      {
+        id: 'cred-meta-dl',
+        clientId: 'client-dl-midia',
+        service: 'Meta Business Manager / Ads',
+        accountName: 'DL MIDIA - BM Oficial',
+        login: 'contato@dlmidia.com.br',
+        password: '',
+        twoFactorNotes: '2FA via aplicativo autenticador no smartphone do Daniel',
+        link: 'https://business.facebook.com/select'
+      },
+      {
+        id: 'cred-insta-dl',
+        clientId: 'client-dl-midia',
+        service: 'Instagram',
+        accountName: '@dlmidia',
+        login: 'contato@dlmidia.com.br',
+        password: '',
+        twoFactorNotes: 'Código SMS / App autenticador',
+        link: 'https://www.instagram.com'
+      }
+    ],
+    scheduledPosts: [
+      {
+        id: 'post-1',
+        clientId: 'client-dl-midia',
+        title: 'Como Reduzir o CPA em 40% no Meta Ads usando Ganchos de 3s',
+        platform: 'Instagram Reels',
+        date: '2026-10-25',
+        time: '18:00',
+        format: 'Vídeo / Reels',
+        status: 'Roteirizado',
+        hook: 'Se você ainda começa seus anúncios falando "Olá, meu nome é...", você está queimando 80% do seu orçamento.',
+        caption: 'O algoritmo da Meta decide nos primeiros 3 segundos se o seu anúncio é relevante ou não. Aqui está a estrutura exata que usamos na DL MIDIA...'
+      }
+    ]
+  };
+}
+
+function loadAppData() {
   try {
     const configPath = getConfigPath();
     if (fs.existsSync(configPath)) {
       const raw = fs.readFileSync(configPath, 'utf8');
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      // Garantir compatibilidade de campos
+      const defaultData = getDefaultData();
+      return {
+        settings: { ...defaultData.settings, ...(parsed.settings || {}) },
+        activeClientId: parsed.activeClientId || defaultData.activeClientId,
+        clients: parsed.clients || defaultData.clients,
+        credentials: parsed.credentials || defaultData.credentials,
+        scheduledPosts: parsed.scheduledPosts || defaultData.scheduledPosts
+      };
     }
   } catch (err) {
-    console.warn('Erro ao carregar configurações salvas:', err);
+    console.warn('Erro ao carregar dados salvos:', err);
   }
-  return {
-    geminiApiKey: '',
-    selectedModel: 'gemini-2.0-flash',
-    theme: 'dark',
-    defaultUrl: 'https://adsmanager.facebook.com'
-  };
+  const initial = getDefaultData();
+  saveAppData(initial);
+  return initial;
 }
 
-function saveSettings(data) {
+function saveAppData(data) {
   try {
     const configPath = getConfigPath();
-    const current = loadSavedSettings();
-    const updated = { ...current, ...data };
-    fs.writeFileSync(configPath, JSON.stringify(updated, null, 2), 'utf8');
-    return { success: true, settings: updated };
+    fs.writeFileSync(configPath, JSON.stringify(data, null, 2), 'utf8');
+    return { success: true };
   } catch (err) {
-    console.error('Erro ao salvar configurações:', err);
+    console.error('Erro ao salvar dados:', err);
     return { success: false, error: err.message };
   }
 }
 
-// User-Agent limpo para evitar bloqueio do Meta Ads Manager / Google Ads por "Electron"
+// User-Agent limpo para garantir compatibilidade com Facebook Ads e Google Ads
 const CLEAN_CHROME_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 
@@ -70,11 +137,9 @@ function createWindow() {
     }
   });
 
-  // Configuração da partição persistente para o Chromium embutido
   const persistentSession = session.fromPartition('persist:adpilot_session');
   persistentSession.setUserAgent(CLEAN_CHROME_USER_AGENT);
 
-  // Permissões padrão para anúncios (áudio, câmera/mic se necessário em prévias de criativos)
   persistentSession.setPermissionRequestHandler((webContents, permission, callback) => {
     const allowed = ['notifications', 'media', 'clipboard-read', 'clipboard-sanitized-write'];
     callback(allowed.includes(permission));
@@ -87,29 +152,43 @@ function createWindow() {
   });
 }
 
-// IPC Handlers
+// ===================================================================
+// IPC Handlers: Armazenamento e Estado do Sistema
+// ===================================================================
 
-// 1. Obter e Salvar Configurações
+ipcMain.handle('storage:get-all', async () => {
+  return loadAppData();
+});
+
+ipcMain.handle('storage:save-all', async (event, fullData) => {
+  return saveAppData(fullData);
+});
+
+// Compatibilidade com chamadas anteriores
 ipcMain.handle('storage:get-settings', async () => {
-  return loadSavedSettings();
+  const data = loadAppData();
+  return data.settings;
 });
 
-ipcMain.handle('storage:save-settings', async (event, data) => {
-  return saveSettings(data);
+ipcMain.handle('storage:save-settings', async (event, newSettings) => {
+  const data = loadAppData();
+  data.settings = { ...data.settings, ...newSettings };
+  return saveAppData(data);
 });
 
-// 2. Chamar API Google Gemini
+// ===================================================================
+// IPC Handlers: Chamadas à API Google Gemini
+// ===================================================================
+
 ipcMain.handle('gemini:call', async (event, { apiKey, model, systemInstruction, prompt }) => {
-  const chosenModel = model || 'gemini-2.0-flash';
-  
-  if (!apiKey) {
-    return {
-      success: false,
-      error: 'Chave de API do Google Gemini não configurada. Por favor, acesse a aba "Configurações" e insira sua chave.'
-    };
+  let chosenModel = model || DEFAULT_MODEL;
+  // Corrige modelos descontinuados automaticamente para o recomendado da Google
+  if (chosenModel === 'gemini-2.0-flash' || chosenModel === 'gemini-1.5-flash') {
+    chosenModel = 'gemini-flash-latest';
   }
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${chosenModel}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const effectiveKey = (apiKey && apiKey.trim()) || DEFAULT_GEMINI_KEY;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${chosenModel}:generateContent?key=${encodeURIComponent(effectiveKey)}`;
 
   const requestBody = {
     contents: [
@@ -130,7 +209,8 @@ ipcMain.handle('gemini:call', async (event, { apiKey, model, systemInstruction, 
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-goog-api-key': effectiveKey
       },
       body: JSON.stringify(requestBody)
     });
@@ -141,9 +221,7 @@ ipcMain.handle('gemini:call', async (event, { apiKey, model, systemInstruction, 
       try {
         const errorJson = JSON.parse(errorText);
         parsedError = errorJson.error?.message || errorText;
-      } catch (e) {
-        // use raw errorText
-      }
+      } catch (e) {}
       return {
         success: false,
         error: `Erro Google Gemini (${response.status}): ${parsedError}`
@@ -156,7 +234,7 @@ ipcMain.handle('gemini:call', async (event, { apiKey, model, systemInstruction, 
     return {
       success: true,
       text: textOutput,
-      model: chosenModel,
+      model: data.modelVersion || chosenModel,
       usage: data.usageMetadata
     };
   } catch (err) {
@@ -167,24 +245,29 @@ ipcMain.handle('gemini:call', async (event, { apiKey, model, systemInstruction, 
   }
 });
 
-// 3. Testar Chave do Gemini
 ipcMain.handle('gemini:test-key', async (event, { apiKey }) => {
-  if (!apiKey || apiKey.trim() === '') {
-    return { success: false, message: 'Chave de API vazia.' };
-  }
+  const effectiveKey = (apiKey && apiKey.trim()) || DEFAULT_GEMINI_KEY;
 
   try {
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey.trim())}`;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${encodeURIComponent(effectiveKey)}`;
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-goog-api-key': effectiveKey 
+      },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: 'Ping teste: responda "OK"' }] }]
       })
     });
 
     if (response.ok) {
-      return { success: true, message: 'Conexão com a Google Gemini API validada com sucesso!' };
+      const data = await response.json();
+      const modelVer = data.modelVersion || 'gemini-flash-latest';
+      return { 
+        success: true, 
+        message: `Conexão com Google Gemini API (${modelVer}) validada com sucesso!` 
+      };
     } else {
       const err = await response.text();
       let msg = err;
@@ -199,7 +282,7 @@ ipcMain.handle('gemini:test-key', async (event, { apiKey }) => {
   }
 });
 
-// 4. Abrir Links Externos no Navegador Padrão do Sistema
+// Abertura de links externos
 ipcMain.handle('shell:open-external', async (event, url) => {
   if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
     await shell.openExternal(url);
@@ -208,7 +291,7 @@ ipcMain.handle('shell:open-external', async (event, url) => {
   return false;
 });
 
-// Inicialização do App
+// Inicialização da Aplicação
 app.whenReady().then(() => {
   createWindow();
 
