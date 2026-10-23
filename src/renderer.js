@@ -391,7 +391,10 @@ function renderCredentials() {
       ` : ''}
 
       <div class="cred-actions-bar">
-        ${cred.link ? `<button class="btn-primary btn-open-cred-link" data-url="${escapeHtml(cred.link)}" style="font-size: 11px; padding: 3px 8px;">🌐 Abrir no Navegador</button>` : '<span></span>'}
+        <div style="display: flex; gap: 5px;">
+          ${cred.link ? `<button class="btn-primary btn-open-chrome-cred" data-url="${escapeHtml(cred.link)}" style="font-size: 11px; padding: 3px 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%);" title="Abrir no Google Chrome Oficial (Sem bloqueios de 2FA ou Captcha)">🚀 Abrir no Chrome</button>` : ''}
+          ${cred.link ? `<button class="btn-secondary btn-open-cred-link" data-url="${escapeHtml(cred.link)}" style="font-size: 11px; padding: 3px 6px;" title="Abrir na visualização interna do app">📱 No App</button>` : ''}
+        </div>
         <div style="display: flex; gap: 4px;">
           <button class="btn-secondary btn-edit-cred" data-id="${cred.id}" style="font-size: 10px; padding: 2px 6px;">Editar</button>
           <button class="btn-danger btn-delete-cred" data-id="${cred.id}" style="font-size: 10px; padding: 2px 5px;">Excluir</button>
@@ -421,6 +424,12 @@ function renderCredentials() {
 
     card.querySelector('.btn-copy-pass')?.addEventListener('click', (e) => {
       copyToClipboard(cred.password, e.target, 'Copiado!');
+    });
+
+    card.querySelector('.btn-open-chrome-cred')?.addEventListener('click', () => {
+      if (cred.link && window.adpilot) {
+        window.adpilot.openExternal(cred.link);
+      }
     });
 
     card.querySelector('.btn-open-cred-link')?.addEventListener('click', () => {
@@ -832,6 +841,37 @@ function setupNavigation() {
       const targetUrl = chip.getAttribute('data-url');
       if (targetUrl) navigateTo(targetUrl);
     });
+  });
+
+  // Botão "Abrir no Chrome Oficial"
+  const btnOpenChrome = document.getElementById('btn-open-in-chrome');
+  btnOpenChrome?.addEventListener('click', () => {
+    let currentUrl = urlInput?.value?.trim() || 'https://adsmanager.facebook.com';
+    if (!currentUrl.startsWith('http://') && !currentUrl.startsWith('https://')) {
+      currentUrl = 'https://' + currentUrl;
+    }
+    if (window.adpilot) {
+      window.adpilot.openExternal(currentUrl);
+      if (footerStatus) {
+        footerStatus.textContent = '🚀 Aberto no Google Chrome Oficial!';
+        setTimeout(() => { if (footerStatus) footerStatus.textContent = 'Pronto'; }, 3000);
+      }
+    }
+  });
+
+  // Botão "Fixar Janela" (Always on Top)
+  const btnPin = document.getElementById('btn-pin-window');
+  btnPin?.addEventListener('click', async () => {
+    if (window.adpilot) {
+      const isPinned = await window.adpilot.toggleAlwaysOnTop();
+      if (isPinned) {
+        btnPin.classList.add('active-pin');
+        btnPin.title = 'Desafixar Janela (Janela fixada no topo)';
+      } else {
+        btnPin.classList.remove('active-pin');
+        btnPin.title = 'Fixar Copiloto no Topo (Trabalhe com o AdPilot ao lado do Chrome)';
+      }
+    }
   });
 
   let splitState = 0;

@@ -30,22 +30,27 @@
       <button class="preset-chip active" data-url="https://adsmanager.facebook.com">
         <span>📊</span> Meta Ads
       </button>
-      <button class="preset-chip" data-url="https://www.facebook.com/login.php">
-        <span>🔑</span> Login FB
+      <button class="preset-chip" data-url="https://ads.google.com">
+        <span>🎯</span> Google Ads
+      </button>
+      <button class="preset-chip" data-url="https://analytics.google.com">
+        <span>📈</span> GA4
       </button>
       <button class="preset-chip" data-url="https://www.facebook.com/ads/library">
         <span>🕵️</span> Ad Library
       </button>
-      <button class="preset-chip" data-url="https://www.instagram.com">
-        <span>📸</span> Instagram
-      </button>
       <button class="preset-chip" data-url="https://business.facebook.com">
         <span>💼</span> BM Suite
       </button>
-      <button class="preset-chip" data-url="https://ads.google.com">
-        <span>🎯</span> Google
+      <button class="preset-chip" data-url="https://www.instagram.com">
+        <span>📸</span> Instagram
       </button>
     </div>
+
+    <!-- Botão de Abertura Direta no Chrome Oficial (Sem bloqueio de Captcha / Verificação) -->
+    <button id="btn-open-in-chrome" class="btn-chrome-launch" title="Abrir URL atual diretamente no Google Chrome Oficial (Zero bloqueios de login, Passkeys e 2FA nativo)">
+      <span>🚀</span> Abrir no Chrome
+    </button>
 
     <!-- Seletor Rápido de Empresa Ativa no Header -->
     <div class="client-selector-header" title="Selecione a empresa para contextualizar todas as análises e criativos da IA">
@@ -57,9 +62,7 @@
 
     <!-- Indicador de Sessão & Layout -->
     <div class="header-actions">
-      <div class="session-badge" title="Sessão Chromium persistente: seus logins do Facebook e Instagram permanecem salvos localmente">
-        <span class="dot-indicator"></span> Sessão Segura
-      </div>
+      <button id="btn-pin-window" class="icon-btn" title="Fixar Copiloto no Topo (Trabalhe com o AdPilot ao lado do Chrome)">📌</button>
       <button id="btn-toggle-split" class="icon-btn" title="Alternar visualização do painel">◫</button>
     </div>
   </header>
@@ -114,6 +117,8 @@
         <div class="chat-container">
           <div class="quick-prompts-bar">
             <button class="quick-prompt-pill" data-prompt="Quais os primeiros testes de criativos que devemos rodar para esta empresa?">🎯 Próximos Testes</button>
+            <button class="quick-prompt-pill" data-prompt="Crie 15 títulos (máx 30 caracteres) e 4 descrições (máx 90 caracteres) para Google Ads Pesquisa desta empresa.">🎯 Google Ads Pesquisa</button>
+            <button class="quick-prompt-pill" data-prompt="Sugira estrutura de campanha Google Ads Performance Max (PMax) com recursos e públicos.">⚡ Google PMax</button>
             <button class="quick-prompt-pill" data-prompt="Como estruturar um teste 3:2:2 no Meta Ads para o nicho desta empresa?">🧪 Estrutura 3:2:2</button>
             <button class="quick-prompt-pill" data-prompt="Crie uma estratégia de escala CBO mantendo o CPA dentro da meta.">🚀 Escala CBO</button>
             <button class="quick-prompt-pill" data-prompt="Checklist para evitar bloqueios de BM e aquecimento de contingência.">🛡️ Contingência</button>

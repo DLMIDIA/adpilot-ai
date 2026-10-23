@@ -153,6 +153,43 @@ body {
   border-color: var(--primary);
 }
 
+/* Botão de Lançamento no Google Chrome Oficial */
+.btn-chrome-launch {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+  -webkit-app-region: no-drag;
+}
+
+.btn-chrome-launch:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-chrome-launch:active {
+  transform: translateY(0);
+}
+
+/* Estado de Fixar Copiloto no Topo (Always on Top) */
+.icon-btn.active-pin {
+  color: #fbbf24 !important;
+  background: rgba(251, 191, 36, 0.2) !important;
+  border: 1px solid rgba(251, 191, 36, 0.5) !important;
+  border-radius: 4px;
+}
+
 /* Seletor Global de Empresa no Header */
 .client-selector-header {
   display: flex;

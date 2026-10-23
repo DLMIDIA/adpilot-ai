@@ -319,13 +319,27 @@ ipcMain.handle('gemini:test-key', async (event, { apiKey }) => {
   }
 });
 
-// Abertura de links externos
+// Abertura de links externos no navegador padrão do sistema (Google Chrome)
 ipcMain.handle('shell:open-external', async (event, url) => {
   if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
     await shell.openExternal(url);
     return true;
   }
   return false;
+});
+
+// Controle de Janela Flutuante (Modo Copiloto / Always on Top)
+ipcMain.handle('window:toggle-always-on-top', async () => {
+  if (mainWindow) {
+    const isAlways = mainWindow.isAlwaysOnTop();
+    mainWindow.setAlwaysOnTop(!isAlways);
+    return !isAlways;
+  }
+  return false;
+});
+
+ipcMain.handle('window:is-always-on-top', async () => {
+  return mainWindow ? mainWindow.isAlwaysOnTop() : false;
 });
 
 // Inicialização da Aplicação

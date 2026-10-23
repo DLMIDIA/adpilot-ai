@@ -12,5 +12,7 @@ contextBridge.exposeInMainWorld('adpilot', {
   saveSettings: (data) => ipcRenderer.invoke('storage:save-settings', data),
   callGemini: (params) => ipcRenderer.invoke('gemini:call', params),
   testGeminiKey: (params) => ipcRenderer.invoke('gemini:test-key', params),
-  openExternal: (url) => ipcRenderer.invoke('shell:open-external', url)
+  openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
+  toggleAlwaysOnTop: () => ipcRenderer.invoke('window:toggle-always-on-top'),
+  isAlwaysOnTop: () => ipcRenderer.invoke('window:is-always-on-top')
 });
