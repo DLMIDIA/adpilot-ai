@@ -27,22 +27,22 @@
 
     <!-- Atalhos de Tráfego Pago -->
     <div class="quick-presets">
-      <button class="preset-chip active" data-url="https://adsmanager.facebook.com">
-        <span>📊</span> Meta Ads
+      <button class="preset-chip active" data-app="chrome" data-url="https://adsmanager.facebook.com" title="Abre com 1 clique no Google Chrome Oficial sem bloqueios de segurança">
+        <span>📊</span> Meta Ads <span class="tag-ext">Chrome</span>
       </button>
-      <button class="preset-chip" data-url="https://ads.google.com">
-        <span>🎯</span> Google Ads
+      <button class="preset-chip" data-app="chrome" data-url="https://ads.google.com" title="Abre no Google Chrome Oficial (Zero erros de navegador inseguro)">
+        <span>🎯</span> Google Ads <span class="tag-ext">Chrome</span>
       </button>
-      <button class="preset-chip" data-url="https://analytics.google.com">
-        <span>📈</span> GA4
+      <button class="preset-chip" data-app="chrome" data-url="https://analytics.google.com" title="Abre no Google Chrome Oficial">
+        <span>📈</span> GA4 <span class="tag-ext">Chrome</span>
       </button>
-      <button class="preset-chip" data-url="https://www.facebook.com/ads/library">
+      <button class="preset-chip" data-app="webview" data-url="https://www.facebook.com/ads/library" title="Carrega na tela do app para espionar concorrentes">
         <span>🕵️</span> Ad Library
       </button>
-      <button class="preset-chip" data-url="https://business.facebook.com">
-        <span>💼</span> BM Suite
+      <button class="preset-chip" data-app="chrome" data-url="https://business.facebook.com" title="Abre no Google Chrome Oficial">
+        <span>💼</span> BM Suite <span class="tag-ext">Chrome</span>
       </button>
-      <button class="preset-chip" data-url="https://www.instagram.com">
+      <button class="preset-chip" data-app="webview" data-url="https://www.instagram.com">
         <span>📸</span> Instagram
       </button>
     </div>
@@ -62,6 +62,7 @@
 
     <!-- Indicador de Sessão & Layout -->
     <div class="header-actions">
+      <button id="btn-toggle-view-mode" class="icon-btn" title="Alternar entre Cockpit da Empresa e Navegador Web">🏢</button>
       <button id="btn-pin-window" class="icon-btn" title="Fixar Copiloto no Topo (Trabalhe com o AdPilot ao lado do Chrome)">📌</button>
       <button id="btn-toggle-split" class="icon-btn" title="Alternar visualização do painel">◫</button>
     </div>
@@ -72,13 +73,132 @@
        =================================================================== -->
   <main class="app-container">
     
-    <!-- Painel Esquerdo: Navegador Chromium Embutido -->
+    <!-- Painel Esquerdo: Cockpit Estratégico & Navegador Web -->
     <section class="left-panel" id="panel-browser">
       <div class="webview-loader" id="webview-loader"></div>
+
+      <!-- Banner de Interceptação de Bloqueio do Google/Meta -->
+      <div id="auth-intercept-banner" class="auth-intercept-banner" style="display: none;">
+        <div class="auth-intercept-box">
+          <div class="auth-intercept-icon">🔒</div>
+          <div class="auth-intercept-title">Acesso Protegido pelo Google / Meta</div>
+          <div class="auth-intercept-desc">
+            O Google bloqueia intencionalmente o login dentro de WebViews para proteção contra roubo de credenciais (política <em>Disallowed User-Agent</em>).
+          </div>
+          <div class="auth-intercept-tip">
+            💡 Suas campanhas abrem com 100% de estabilidade, Touch ID e sem nenhuma verificação repetida no seu Google Chrome oficial!
+          </div>
+          <button id="btn-intercept-open-chrome" class="btn-intercept-action">
+            <span>🚀</span> Abrir Agora no Google Chrome Oficial
+          </button>
+          <button id="btn-intercept-to-cockpit" class="btn-secondary" style="font-size: 11.5px; padding: 6px 14px; width: 100%;">
+            Ir para a Central de Comando da Empresa
+          </button>
+        </div>
+      </div>
+
+      <!-- VISÃO 1: Cockpit Hub da Empresa Ativa -->
+      <div id="cockpit-hub" class="cockpit-hub-view">
+        <div class="cockpit-hero">
+          <div class="cockpit-company-badge">
+            <span class="company-icon">🏢</span>
+            <div>
+              <h2 id="hub-company-name">DL MIDIA</h2>
+              <span id="hub-company-niche" class="company-subtitle">Agência de Marketing & Tráfego Pago</span>
+            </div>
+          </div>
+          <div class="cockpit-status-tag">⚡ Cockpit Operacional Ativo</div>
+        </div>
+
+        <div class="cockpit-grid">
+          <!-- Bloco 1: Lançador Seguro no Chrome -->
+          <div class="cockpit-card">
+            <div class="cockpit-card-title">🚀 Plataformas no Chrome Oficial (Sem Bloqueios)</div>
+            <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px;">
+              Clique para abrir instantaneamente no seu navegador nativo onde você já tem acesso seguro:
+            </p>
+            <div class="quick-launch-buttons">
+              <button class="btn-launch-platform" data-url="https://adsmanager.facebook.com">
+                <span>📊</span>
+                <div>
+                  <strong>Meta Ads Manager</strong>
+                  <small>Gerenciador de Anúncios Facebook & Instagram</small>
+                </div>
+                <span class="launch-arrow">➜</span>
+              </button>
+              <button class="btn-launch-platform" data-url="https://ads.google.com">
+                <span>🎯</span>
+                <div>
+                  <strong>Google Ads</strong>
+                  <small>Rede de Pesquisa, Performance Max & YouTube</small>
+                </div>
+                <span class="launch-arrow">➜</span>
+              </button>
+              <button class="btn-launch-platform" data-url="https://analytics.google.com">
+                <span>📈</span>
+                <div>
+                  <strong>Google Analytics 4 (GA4)</strong>
+                  <small>Métricas de Tráfego e Eventos de Conversão</small>
+                </div>
+                <span class="launch-arrow">➜</span>
+              </button>
+              <button class="btn-launch-platform" data-url="https://business.facebook.com">
+                <span>💼</span>
+                <div>
+                  <strong>Meta Business Suite</strong>
+                  <small>Gestão de BMs, Páginas e Ativos</small>
+                </div>
+                <span class="launch-arrow">➜</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Bloco 2: Estratégia e Metas da Empresa Ativa -->
+          <div class="cockpit-card">
+            <div class="cockpit-card-title">🎯 Estratégia Ativa & Metas</div>
+            <div class="hub-info-item">
+              <label>Oferta Principal / Ticket:</label>
+              <div id="hub-company-offer">Gestão Completa de Tráfego Pago</div>
+            </div>
+            <div class="hub-info-item">
+              <label>Público-Alvo & Dores:</label>
+              <div id="hub-company-audience">Empresários e negócios em busca de escala</div>
+            </div>
+            <div class="hub-info-item">
+              <label>Estratégia de Tráfego:</label>
+              <div id="hub-company-strategy">Reels para Direct e Click-to-WhatsApp</div>
+            </div>
+            <div class="hub-info-item">
+              <label>Metas do Mês:</label>
+              <div id="hub-company-goals">CPA máx R$ 40,00 | 60 reuniões</div>
+            </div>
+          </div>
+
+          <!-- Bloco 3: Credenciais Rápidas da Empresa -->
+          <div class="cockpit-card" style="grid-column: span 2;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div class="cockpit-card-title" style="margin-bottom: 0;">🔐 Credenciais de Acesso desta Empresa</div>
+              <button id="hub-btn-manage-vault" class="btn-secondary" style="font-size: 11px; padding: 2px 8px;">Gerenciar no Cofre</button>
+            </div>
+            <div id="hub-credentials-list" class="hub-cred-grid"></div>
+          </div>
+        </div>
+
+        <!-- Barra Inferior -->
+        <div class="cockpit-footer-bar">
+          <span>Para espionar anúncios de concorrentes sem precisar de login:</span>
+          <button id="btn-load-ad-library" class="btn-secondary" style="font-size: 11.5px; padding: 5px 12px; color: #fff;">
+            🕵️ Carregar Ad Library da Meta na Tela
+          </button>
+        </div>
+      </div>
+
+      <!-- VISÃO 2: Navegador Webview (Para páginas que não bloqueiam) -->
       <webview 
         id="main-webview" 
+        style="display: none;"
         partition="persist:adpilot_session" 
-        src="https://adsmanager.facebook.com" 
+        src="https://www.facebook.com/ads/library" 
         useragent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.117 Safari/537.36"
         preload="./webviewPreload.js"
         allowpopups>

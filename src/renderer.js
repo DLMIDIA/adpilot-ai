@@ -76,6 +76,7 @@ async function initApp() {
   renderClients();
   renderCredentials();
   renderScheduledPosts();
+  renderCockpitHub();
   setupChat();
   setupAudit();
   setupCopyEngine();
@@ -113,6 +114,7 @@ function setupGlobalClientSync() {
     appState.activeClientId = globalClientSelect.value;
     persistState();
     renderClients();
+    renderCockpitHub();
     updateFooterClient();
   });
 
@@ -787,18 +789,94 @@ function setupWebview() {
     `).catch(() => {});
   });
 
+  const interceptBlockUrl = (url) => {
+    if (!url) return false;
+    const banner = document.getElementById('auth-intercept-banner');
+    if (url.includes('accounts.google.com') && (url.includes('rejected') || url.includes('signin/rejected') || url.includes('signin') || url.includes('ServiceLogin'))) {
+      if (banner) banner.style.display = 'flex';
+      if (webview) webview.style.display = 'none';
+      return true;
+    }
+    return false;
+  };
+
   const updateUrlField = () => {
     try {
       const currentUrl = webview.getURL();
       if (currentUrl && currentUrl !== 'about:blank') {
         urlInput.value = currentUrl;
         highlightActivePreset(currentUrl);
+        interceptBlockUrl(currentUrl);
       }
     } catch (e) {}
   };
 
   webview.addEventListener('did-navigate', updateUrlField);
   webview.addEventListener('did-navigate-in-page', updateUrlField);
+}
+
+function showCockpitHub() {
+  const hub = document.getElementById('cockpit-hub');
+  const banner = document.getElementById('auth-intercept-banner');
+  if (hub) hub.style.display = 'flex';
+  if (webview) webview.style.display = 'none';
+  if (banner) banner.style.display = 'none';
+  renderCockpitHub();
+}
+
+function showWebview() {
+  const hub = document.getElementById('cockpit-hub');
+  const banner = document.getElementById('auth-intercept-banner');
+  if (hub) hub.style.display = 'none';
+  if (webview) webview.style.display = 'flex';
+  if (banner) banner.style.display = 'none';
+}
+
+function renderCockpitHub() {
+  const client = getActiveClient();
+  const nameEl = document.getElementById('hub-company-name');
+  const nicheEl = document.getElementById('hub-company-niche');
+  const offerEl = document.getElementById('hub-company-offer');
+  const audienceEl = document.getElementById('hub-company-audience');
+  const strategyEl = document.getElementById('hub-company-strategy');
+  const goalsEl = document.getElementById('hub-company-goals');
+  const credsListEl = document.getElementById('hub-credentials-list');
+
+  if (nameEl) nameEl.textContent = client ? client.name : 'DL MIDIA';
+  if (nicheEl) nicheEl.textContent = client ? (client.niche || 'Geral') : 'Agência de Marketing & Tráfego Pago';
+  if (offerEl) offerEl.textContent = client ? (client.offer || 'Não especificada') : 'Gestão Completa de Tráfego';
+  if (audienceEl) audienceEl.textContent = client ? (client.audience || 'Não especificado') : 'Empresários e Leads';
+  if (strategyEl) strategyEl.textContent = client ? (client.strategy || 'Não definida') : 'Conversão';
+  if (goalsEl) goalsEl.textContent = client ? (client.goals || 'CPA baixo') : 'CPA máx R$ 40';
+
+  if (credsListEl) {
+    credsListEl.innerHTML = '';
+    const clientCreds = appState.credentials.filter(c => !client || c.clientId === client.id);
+    if (clientCreds.length === 0) {
+      credsListEl.innerHTML = '<div style="font-size: 11px; color: var(--text-dim); padding: 8px;">Nenhuma credencial cadastrada para esta empresa.</div>';
+    } else {
+      clientCreds.forEach(cr => {
+        const item = document.createElement('div');
+        item.className = 'hub-cred-item';
+        item.innerHTML = `
+          <div style="font-size: 10px; color: var(--primary); font-weight: 700;">${escapeHtml(cr.service || 'Serviço')}</div>
+          <div style="font-size: 11.5px; font-weight: 600; color: #fff;">${escapeHtml(cr.accountName || 'Conta')}</div>
+          <div style="font-size: 10.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(cr.login || '')}</div>
+          <div style="display: flex; gap: 4px; margin-top: 4px;">
+            <button class="btn-secondary hub-copy-login" style="font-size: 9.5px; padding: 2px 6px;">Copiar Login</button>
+            <button class="btn-secondary hub-copy-pass" style="font-size: 9.5px; padding: 2px 6px;">Copiar Senha</button>
+            ${cr.link ? `<button class="btn-primary hub-launch-chrome" data-url="${escapeHtml(cr.link)}" style="font-size: 9.5px; padding: 2px 6px; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">No Chrome</button>` : ''}
+          </div>
+        `;
+        item.querySelector('.hub-copy-login')?.addEventListener('click', (e) => copyToClipboard(cr.login, e.target, 'Copiado!'));
+        item.querySelector('.hub-copy-pass')?.addEventListener('click', (e) => copyToClipboard(cr.password, e.target, 'Copiado!'));
+        item.querySelector('.hub-launch-chrome')?.addEventListener('click', () => {
+          if (cr.link && window.adpilot) window.adpilot.openExternal(cr.link);
+        });
+        credsListEl.appendChild(item);
+      });
+    }
+  }
 }
 
 function setupNavigation() {
@@ -836,11 +914,78 @@ function setupNavigation() {
     if (e.key === 'Enter') handleNavigate();
   });
 
+  // Preset Chips com inteligência Chrome vs Webview
   document.querySelectorAll('.preset-chip').forEach(chip => {
     chip.addEventListener('click', () => {
       const targetUrl = chip.getAttribute('data-url');
-      if (targetUrl) navigateTo(targetUrl);
+      const appType = chip.getAttribute('data-app') || 'webview';
+
+      document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+
+      if (appType === 'chrome') {
+        if (targetUrl && window.adpilot) {
+          window.adpilot.openExternal(targetUrl);
+          if (footerStatus) {
+            footerStatus.textContent = '🚀 Aberto no Google Chrome Oficial!';
+            setTimeout(() => { if (footerStatus) footerStatus.textContent = 'Pronto'; }, 3000);
+          }
+        }
+        showCockpitHub();
+      } else {
+        showWebview();
+        if (targetUrl) navigateTo(targetUrl);
+      }
     });
+  });
+
+  // Alternador de modo (Cockpit vs Navegador)
+  const btnToggleViewMode = document.getElementById('btn-toggle-view-mode');
+  btnToggleViewMode?.addEventListener('click', () => {
+    const hub = document.getElementById('cockpit-hub');
+    if (hub && hub.style.display !== 'none') {
+      showWebview();
+      btnToggleViewMode.title = 'Alternar para Cockpit da Empresa';
+    } else {
+      showCockpitHub();
+      btnToggleViewMode.title = 'Alternar para Navegador Web';
+    }
+  });
+
+  // Botões de lançamento dentro do Cockpit
+  document.querySelectorAll('.btn-launch-platform').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const url = btn.getAttribute('data-url');
+      if (url && window.adpilot) {
+        window.adpilot.openExternal(url);
+        if (footerStatus) {
+          footerStatus.textContent = '🚀 Aberto no Google Chrome Oficial!';
+          setTimeout(() => { if (footerStatus) footerStatus.textContent = 'Pronto'; }, 3000);
+        }
+      }
+    });
+  });
+
+  // Botão Ad Library no Cockpit
+  document.getElementById('btn-load-ad-library')?.addEventListener('click', () => {
+    showWebview();
+    navigateTo('https://www.facebook.com/ads/library');
+  });
+
+  // Botões do Banner de Interceptação de Bloqueio Google/Meta
+  document.getElementById('btn-intercept-open-chrome')?.addEventListener('click', () => {
+    let currentUrl = urlInput?.value?.trim() || 'https://ads.google.com';
+    if (window.adpilot) window.adpilot.openExternal(currentUrl);
+    showCockpitHub();
+  });
+
+  document.getElementById('btn-intercept-to-cockpit')?.addEventListener('click', () => {
+    showCockpitHub();
+  });
+
+  // Acessar cofre a partir do Cockpit
+  document.getElementById('hub-btn-manage-vault')?.addEventListener('click', () => {
+    document.querySelector('.copilot-tab-btn[data-tab="tab-vault"]')?.click();
   });
 
   // Botão "Abrir no Chrome Oficial"
@@ -893,10 +1038,20 @@ function setupNavigation() {
 }
 
 function navigateTo(url) {
-  if (webview && url) {
-    webview.src = url;
-    urlInput.value = url;
-    highlightActivePreset(url);
+  if (url) {
+    if (url.includes('accounts.google.com') && (url.includes('rejected') || url.includes('signin/rejected') || url.includes('signin') || url.includes('ServiceLogin'))) {
+      const banner = document.getElementById('auth-intercept-banner');
+      if (banner) banner.style.display = 'flex';
+      if (webview) webview.style.display = 'none';
+      return;
+    }
+
+    showWebview();
+    if (webview) {
+      webview.src = url;
+      urlInput.value = url;
+      highlightActivePreset(url);
+    }
   }
 }
 
