@@ -30,6 +30,9 @@
       <button class="preset-chip active" data-url="https://adsmanager.facebook.com">
         <span>📊</span> Meta Ads
       </button>
+      <button class="preset-chip" data-url="https://www.facebook.com/login.php">
+        <span>🔑</span> Login FB
+      </button>
       <button class="preset-chip" data-url="https://www.facebook.com/ads/library">
         <span>🕵️</span> Ad Library
       </button>
@@ -73,6 +76,8 @@
         id="main-webview" 
         partition="persist:adpilot_session" 
         src="https://adsmanager.facebook.com" 
+        useragent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.117 Safari/537.36"
+        preload="./webviewPreload.js"
         allowpopups>
       </webview>
     </section>

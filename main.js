@@ -10,11 +10,24 @@ const { app, BrowserWindow, ipcMain, session, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+// Desabilita detecção de automação no Chromium e permite cookies de terceiros para Meta
+app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
+app.commandLine.appendSwitch('disable-features', 'IsolateOrigins,site-per-process,PartitionedCookies');
+app.commandLine.appendSwitch('enable-features', 'NetworkService,NetworkServiceInProcess');
+app.commandLine.appendSwitch('lang', 'pt-BR');
+
 let mainWindow = null;
 
 // Chave padrão carregada de variável de ambiente ou configuração local segura
 const DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 const DEFAULT_MODEL = 'gemini-flash-latest';
+
+// Assinatura exata do Google Chrome real para Mac Apple Silicon
+const CHROME_VERSION = '130.0.6723.117';
+const CHROME_MAJOR = '130';
+const CLEAN_CHROME_USER_AGENT =
+  `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROME_VERSION} Safari/537.36`;
+const SEC_CH_UA = `"Chromium";v="${CHROME_MAJOR}", "Google Chrome";v="${CHROME_MAJOR}", "Not?A_Brand";v="99"`;
 
 function getConfigPath() {
   return path.join(app.getPath('userData'), 'adpilot_settings.json');
@@ -115,10 +128,6 @@ function saveAppData(data) {
   }
 }
 
-// User-Agent limpo para garantir compatibilidade com Facebook Ads e Google Ads
-const CLEAN_CHROME_USER_AGENT =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
-
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1560,
@@ -139,6 +148,34 @@ function createWindow() {
 
   const persistentSession = session.fromPartition('persist:adpilot_session');
   persistentSession.setUserAgent(CLEAN_CHROME_USER_AGENT);
+
+  // Injeta cabeçalhos completos de Client Hints idênticos ao Google Chrome real
+  persistentSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    const headers = { ...details.requestHeaders };
+
+    headers['User-Agent'] = CLEAN_CHROME_USER_AGENT;
+    headers['sec-ch-ua'] = SEC_CH_UA;
+    headers['sec-ch-ua-mobile'] = '?0';
+    headers['sec-ch-ua-platform'] = '"macOS"';
+    headers['sec-ch-ua-platform-version'] = '"15.0.0"';
+    headers['sec-ch-ua-arch'] = '"arm"';
+    headers['sec-ch-ua-bitness'] = '"64"';
+    headers['sec-ch-ua-model'] = '""';
+    headers['sec-ch-ua-full-version-list'] = `"Chromium";v="${CHROME_VERSION}", "Google Chrome";v="${CHROME_VERSION}", "Not?A_Brand";v="99.0.0.0"`;
+
+    delete headers['X-DevTools-Emulate-Network-Conditions-Client-Id'];
+
+    callback({ requestHeaders: headers });
+  });
+
+  persistentSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({ responseHeaders: details.responseHeaders });
+  });
+
+  // Flush contínuo de cookies para o disco (garante persistência de c_user e xs da Meta)
+  setInterval(() => {
+    persistentSession.cookies.flushStore().catch(() => {});
+  }, 4000);
 
   persistentSession.setPermissionRequestHandler((webContents, permission, callback) => {
     const allowed = ['notifications', 'media', 'clipboard-read', 'clipboard-sanitized-write'];
@@ -299,6 +336,27 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
+  });
+});
+
+// Garante tratamento unificado para webviews e popups de autenticação
+app.on('web-contents-created', (event, contents) => {
+  contents.setUserAgent(CLEAN_CHROME_USER_AGENT);
+
+  contents.setWindowOpenHandler(({ url }) => {
+    return {
+      action: 'allow',
+      overrideBrowserWindowOptions: {
+        width: 900,
+        height: 720,
+        backgroundColor: '#0b0f19',
+        webPreferences: {
+          partition: 'persist:adpilot_session',
+          contextIsolation: true,
+          nodeIntegration: false
+        }
+      }
+    };
   });
 });
 

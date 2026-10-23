@@ -756,6 +756,28 @@ function setupWebview() {
     if (footerStatus) footerStatus.textContent = 'Pronto';
   });
 
+  // Captura popups e janelas OAuth/2FA/Captcha e mantém na mesma sessão
+  webview.addEventListener('new-window', (e) => {
+    const url = e.url;
+    if (url && (url.includes('facebook.com') || url.includes('instagram.com') || url.includes('meta.com') || url.includes('google.com'))) {
+      if (url.includes('checkpoint') || url.includes('login') || url.includes('challenge') || url.includes('auth')) {
+        webview.src = url;
+        return;
+      }
+    }
+    window.open(url, '_blank');
+  });
+
+  // Injeção de reforço anti-detecção
+  webview.addEventListener('dom-ready', () => {
+    webview.executeJavaScript(`
+      try {
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined, configurable: true });
+        if (!window.chrome) { window.chrome = { runtime: {}, loadTimes: () => {}, csi: () => {}, app: {} }; }
+      } catch (e) {}
+    `).catch(() => {});
+  });
+
   const updateUrlField = () => {
     try {
       const currentUrl = webview.getURL();
