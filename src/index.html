@@ -542,9 +542,141 @@
         </div>
       </div>
 
-      <!-- ABA 7: Calculadora & Regras (Media Buyer) -->
+      <!-- ABA 7: Métricas Reais & Puxar Dados das Plataformas -->
       <div class="copilot-tab-content" id="tab-tools">
         
+        <!-- HUB DE CONEXÃO & INGESTÃO DE DADOS REAIS -->
+        <div class="card" style="border-color: rgba(99, 102, 241, 0.4);">
+          <div class="section-title">
+            <span>📡 Puxar Dados da Plataforma (Meta Ads / Google)</span>
+            <span class="status-ready" style="font-size: 9px; padding: 2px 6px;">Dados Reais</span>
+          </div>
+          <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4;">
+            Conecte a API oficial da Meta ou cole/importe o relatório de campanhas para que a IA analise métricas reais ao vivo.
+          </p>
+
+          <!-- Seleção do Método de Puxar Dados -->
+          <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+            <button id="btn-mode-meta-api" class="copilot-tab-btn active" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--primary); background: var(--primary);">
+              ⚡ Meta Marketing API
+            </button>
+            <button id="btn-mode-import-table" class="copilot-tab-btn" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated);">
+              📋 Colar / Importar CSV
+            </button>
+          </div>
+
+          <!-- MODO 1: Meta Marketing API Oficial -->
+          <div id="box-meta-api">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div class="form-group">
+                <label class="form-label">ID da Conta de Anúncios</label>
+                <input type="text" id="meta-account-id" class="form-input" placeholder="act_1234567890">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Período de Análise</label>
+                <select id="meta-date-preset" class="form-select">
+                  <option value="last_7d">Últimos 7 dias</option>
+                  <option value="today">Hoje</option>
+                  <option value="yesterday">Ontem</option>
+                  <option value="last_14d">Últimos 14 dias</option>
+                  <option value="last_30d">Últimos 30 dias</option>
+                  <option value="this_month">Este mês</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Token de Acesso da Meta (User Token)</label>
+              <input type="password" id="meta-access-token" class="form-input" placeholder="EAAB... (Token de longa duração)">
+            </div>
+
+            <div style="display: flex; gap: 6px; margin-top: 4px;">
+              <button id="btn-fetch-meta-insights" class="btn-primary" style="flex: 2;">
+                <span>⚡</span> Puxar Dados ao Vivo da Meta
+              </button>
+              <button id="btn-test-meta-token" class="btn-secondary" style="flex: 1; font-size: 11px;">
+                Testar Token
+              </button>
+            </div>
+          </div>
+
+          <!-- MODO 2: Colar Tabela do Gerenciador / Carregar CSV -->
+          <div id="box-import-table" style="display: none;">
+            <div class="form-group">
+              <label class="form-label">Cole a Tabela Copiada do Gerenciador de Anúncios (Ctrl+C no Gerenciador e Ctrl+V aqui):</label>
+              <textarea id="import-table-text" class="form-textarea" rows="4" placeholder="Cole as linhas com as colunas: Campanha, Veiculação, Orçamento, Valor Gasto, Cliques, CTR, CPC, Resultados, Custo por Resultado..."></textarea>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button id="btn-process-pasted-table" class="btn-primary" style="flex: 1;">
+                <span>📊</span> Processar Métricas Coladas
+              </button>
+              <label class="btn-secondary" style="font-size: 11px; padding: 7px 10px; cursor: pointer; text-align: center;">
+                <span>📁</span> Arquivo CSV
+                <input type="file" id="import-csv-file" accept=".csv,.txt" style="display: none;">
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAINEL DE CAMPANHAS CARREGADAS & DIAGNÓSTICO IA -->
+        <div id="campaigns-display-card" class="card" style="display: none; border-color: rgba(16, 185, 129, 0.4);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div class="section-title" style="margin-bottom: 0;">
+              <span>📊 Campanhas Ativas (<span id="campaigns-count">0</span>)</span>
+            </div>
+            <button id="btn-ai-analyze-campaigns" class="btn-primary" style="font-size: 11px; padding: 4px 10px; background: linear-gradient(135deg, #6366f1, #a855f7);">
+              <span>🧠</span> Diagnóstico com IA
+            </button>
+          </div>
+
+          <!-- Resumo de Totais -->
+          <div class="metrics-grid" style="margin-bottom: 12px;">
+            <div class="metric-item">
+              <div class="metric-label">Total Investido</div>
+              <div class="metric-value" id="summary-total-spend">R$ 0,00</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">Conversões</div>
+              <div class="metric-value" id="summary-total-conversions">0</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">CPA Médio Geral</div>
+              <div class="metric-value" id="summary-avg-cpa">R$ 0,00</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">CTR Médio</div>
+              <div class="metric-value" id="summary-avg-ctr">0.0%</div>
+            </div>
+          </div>
+
+          <!-- Tabela de Campanhas -->
+          <div style="overflow-x: auto; max-height: 280px; overflow-y: auto;">
+            <table class="campaigns-table">
+              <thead>
+                <tr>
+                  <th>Campanha</th>
+                  <th>Gasto</th>
+                  <th>Cliques / CTR</th>
+                  <th>CPC</th>
+                  <th>Conversões</th>
+                  <th>CPA Real</th>
+                  <th>Status IA</th>
+                </tr>
+              </thead>
+              <tbody id="campaigns-table-body"></tbody>
+            </table>
+          </div>
+
+          <!-- Caixa de Análise da IA -->
+          <div id="ai-campaigns-analysis-box" class="output-box" style="display: none; margin-top: 12px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+              <strong style="color: var(--primary);">🧠 Análise Tática de Media Buyer (Gemini AI)</strong>
+              <button id="btn-copy-ai-analysis" class="btn-secondary" style="font-size: 10px; padding: 2px 6px;">Copiar</button>
+            </div>
+            <div id="ai-campaigns-analysis-content" style="white-space: pre-wrap; font-size: 11.5px; line-height: 1.5;"></div>
+          </div>
+        </div>
+
         <!-- Calculadora de ROAS & CPA -->
         <div class="card">
           <div class="section-title">

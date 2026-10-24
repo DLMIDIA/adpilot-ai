@@ -41,6 +41,11 @@ function getDefaultData() {
       theme: 'dark',
       defaultUrl: 'https://adsmanager.facebook.com'
     },
+    metaApiConfig: {
+      adAccountId: '',
+      accessToken: ''
+    },
+    importedCampaigns: [],
     activeClientId: 'client-dl-midia',
     clients: [
       {
@@ -106,7 +111,9 @@ function loadAppData() {
         activeClientId: parsed.activeClientId || defaultData.activeClientId,
         clients: parsed.clients || defaultData.clients,
         credentials: parsed.credentials || defaultData.credentials,
-        scheduledPosts: parsed.scheduledPosts || defaultData.scheduledPosts
+        scheduledPosts: parsed.scheduledPosts || defaultData.scheduledPosts,
+        metaApiConfig: parsed.metaApiConfig || defaultData.metaApiConfig,
+        importedCampaigns: parsed.importedCampaigns || defaultData.importedCampaigns
       };
     }
   } catch (err) {
@@ -316,6 +323,59 @@ ipcMain.handle('gemini:test-key', async (event, { apiKey }) => {
     }
   } catch (err) {
     return { success: false, message: `Erro ao conectar: ${err.message}` };
+  }
+});
+
+// ===================================================================
+// IPC Handlers: Conexão Direta com a Meta Marketing API (Graph API)
+// ===================================================================
+ipcMain.handle('meta:test-token', async (event, { accessToken }) => {
+  if (!accessToken || !accessToken.trim()) {
+    return { success: false, message: 'Token de acesso não informado.' };
+  }
+  try {
+    const url = `https://graph.facebook.com/v21.0/me?fields=id,name&access_token=${encodeURIComponent(accessToken.trim())}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.error) {
+      return { success: false, message: `Erro Meta API: ${data.error.message}` };
+    }
+    return { success: true, user: data, message: `Token válido! Conectado como: ${data.name || data.id}` };
+  } catch (err) {
+    return { success: false, message: `Falha na requisição: ${err.message}` };
+  }
+});
+
+ipcMain.handle('meta:fetch-insights', async (event, { accessToken, adAccountId, datePreset = 'last_7d' }) => {
+  if (!accessToken || !accessToken.trim()) {
+    return { success: false, error: 'Token de acesso não informado.' };
+  }
+  if (!adAccountId || !adAccountId.trim()) {
+    return { success: false, error: 'ID da Conta de Anúncios não informado.' };
+  }
+
+  let actId = adAccountId.trim();
+  if (!actId.startsWith('act_')) {
+    actId = `act_${actId}`;
+  }
+
+  const fields = 'campaign_name,spend,impressions,clicks,cpc,ctr,actions,cost_per_action_type';
+  const url = `https://graph.facebook.com/v21.0/${actId}/insights?fields=${fields}&date_preset=${datePreset}&access_token=${encodeURIComponent(accessToken.trim())}`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.error) {
+      return { success: false, error: `Erro Meta API (${data.error.code}): ${data.error.message}` };
+    }
+
+    return {
+      success: true,
+      insights: data.data || []
+    };
+  } catch (err) {
+    return { success: false, error: `Falha ao conectar com Meta Graph API: ${err.message}` };
   }
 });
 

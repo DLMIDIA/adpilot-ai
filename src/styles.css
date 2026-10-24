@@ -453,6 +453,67 @@ body {
   gap: 4px;
 }
 
+/* Tabela de Campanhas & Métricas Reais */
+.campaigns-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  text-align: left;
+}
+
+.campaigns-table th {
+  background-color: var(--bg-surface-elevated);
+  color: var(--text-muted);
+  padding: 6px 8px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  white-space: nowrap;
+}
+
+.campaigns-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+.campaigns-table tr:hover td {
+  background-color: rgba(99, 102, 241, 0.08);
+}
+
+.badge-status-scale {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 9.5px;
+}
+
+.badge-status-kill {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 9.5px;
+}
+
+.badge-status-monitor {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 9.5px;
+}
+
 .cockpit-footer-bar {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);

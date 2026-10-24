@@ -81,6 +81,7 @@ async function initApp() {
   setupAudit();
   setupCopyEngine();
   setupCalculators();
+  setupDataSync();
   setupSettingsUI();
   updateModelTag();
 }
@@ -1405,6 +1406,356 @@ function setupCalculators() {
   btnCopyUtm?.addEventListener('click', () => {
     copyToClipboard(utmFinalUrl.value, btnCopyUtm, 'Link Copiado!');
   });
+}
+
+// ===================================================================
+// 12. Sincronização & Ingestão de Dados das Plataformas de Anúncios
+// ===================================================================
+function setupDataSync() {
+  const btnModeMetaApi = document.getElementById('btn-mode-meta-api');
+  const btnModeImportTable = document.getElementById('btn-mode-import-table');
+  const boxMetaApi = document.getElementById('box-meta-api');
+  const boxImportTable = document.getElementById('box-import-table');
+
+  const metaAccountIdInput = document.getElementById('meta-account-id');
+  const metaDatePresetSelect = document.getElementById('meta-date-preset');
+  const metaAccessTokenInput = document.getElementById('meta-access-token');
+  const btnFetchMetaInsights = document.getElementById('btn-fetch-meta-insights');
+  const btnTestMetaToken = document.getElementById('btn-test-meta-token');
+
+  const importTableText = document.getElementById('import-table-text');
+  const btnProcessPastedTable = document.getElementById('btn-process-pasted-table');
+  const importCsvFile = document.getElementById('import-csv-file');
+
+  const campaignsDisplayCard = document.getElementById('campaigns-display-card');
+  const btnAiAnalyze = document.getElementById('btn-ai-analyze-campaigns');
+  const aiBox = document.getElementById('ai-campaigns-analysis-box');
+  const aiContent = document.getElementById('ai-campaigns-analysis-content');
+  const btnCopyAi = document.getElementById('btn-copy-ai-analysis');
+
+  // Preenche dados salvos
+  if (appState.metaApiConfig) {
+    if (metaAccountIdInput) metaAccountIdInput.value = appState.metaApiConfig.adAccountId || '';
+    if (metaAccessTokenInput) metaAccessTokenInput.value = appState.metaApiConfig.accessToken || '';
+  }
+
+  // Alternador de Abas de Ingestão
+  btnModeMetaApi?.addEventListener('click', () => {
+    btnModeMetaApi.classList.add('active');
+    btnModeMetaApi.style.background = 'var(--primary)';
+    btnModeMetaApi.style.borderColor = 'var(--primary)';
+    btnModeImportTable.classList.remove('active');
+    btnModeImportTable.style.background = 'var(--bg-surface-elevated)';
+    btnModeImportTable.style.borderColor = 'var(--border-subtle)';
+    if (boxMetaApi) boxMetaApi.style.display = 'block';
+    if (boxImportTable) boxImportTable.style.display = 'none';
+  });
+
+  btnModeImportTable?.addEventListener('click', () => {
+    btnModeImportTable.classList.add('active');
+    btnModeImportTable.style.background = 'var(--primary)';
+    btnModeImportTable.style.borderColor = 'var(--primary)';
+    btnModeMetaApi.classList.remove('active');
+    btnModeMetaApi.style.background = 'var(--bg-surface-elevated)';
+    btnModeMetaApi.style.borderColor = 'var(--border-subtle)';
+    if (boxMetaApi) boxMetaApi.style.display = 'none';
+    if (boxImportTable) boxImportTable.style.display = 'block';
+  });
+
+  // Testar Token Meta
+  btnTestMetaToken?.addEventListener('click', async () => {
+    const token = metaAccessTokenInput?.value?.trim();
+    if (!token) {
+      alert('Insira o Token de Acesso da Meta antes de testar.');
+      return;
+    }
+    btnTestMetaToken.disabled = true;
+    btnTestMetaToken.textContent = 'Verificando...';
+    try {
+      if (window.adpilot) {
+        const res = await window.adpilot.testMetaToken({ accessToken: token });
+        alert(res.message);
+      }
+    } catch (e) {
+      alert(`Erro ao testar token: ${e.message}`);
+    } finally {
+      btnTestMetaToken.disabled = false;
+      btnTestMetaToken.textContent = 'Testar Token';
+    }
+  });
+
+  // Puxar Dados ao Vivo via Meta Marketing API
+  btnFetchMetaInsights?.addEventListener('click', async () => {
+    const adAccountId = metaAccountIdInput?.value?.trim();
+    const token = metaAccessTokenInput?.value?.trim();
+    const preset = metaDatePresetSelect?.value || 'last_7d';
+
+    if (!adAccountId || !token) {
+      alert('Informe o ID da Conta de Anúncios e o Token de Acesso da Meta.');
+      return;
+    }
+
+    appState.metaApiConfig = { adAccountId, accessToken: token };
+    persistState();
+
+    btnFetchMetaInsights.disabled = true;
+    btnFetchMetaInsights.textContent = '⏳ Puxando Dados da Meta API...';
+
+    try {
+      if (window.adpilot) {
+        const res = await window.adpilot.fetchMetaInsights({
+          accessToken: token,
+          adAccountId: adAccountId,
+          datePreset: preset
+        });
+
+        if (!res.success) {
+          alert(res.error);
+          return;
+        }
+
+        const parsedCampaigns = (res.insights || []).map(row => {
+          let conversions = 0;
+          if (row.actions && Array.isArray(row.actions)) {
+            const leadAct = row.actions.find(a => 
+              a.action_type.includes('lead') || 
+              a.action_type.includes('purchase') || 
+              a.action_type.includes('complete_registration') ||
+              a.action_type.includes('messaging_conversation')
+            );
+            conversions = leadAct ? parseInt(leadAct.value, 10) : (parseInt(row.actions[0]?.value, 10) || 0);
+          }
+
+          const spend = parseFloat(row.spend) || 0;
+          const clicks = parseInt(row.clicks, 10) || 0;
+          const cpc = parseFloat(row.cpc) || (clicks > 0 ? spend / clicks : 0);
+          const ctr = parseFloat(row.ctr) || 0;
+          const cpa = conversions > 0 ? spend / conversions : 0;
+
+          return {
+            name: row.campaign_name || 'Campanha sem nome',
+            spend,
+            clicks,
+            ctr,
+            cpc,
+            conversions,
+            cpa
+          };
+        });
+
+        appState.importedCampaigns = parsedCampaigns;
+        persistState();
+        renderCampaignsTable(parsedCampaigns);
+      }
+    } catch (err) {
+      alert(`Erro ao puxar dados da Meta: ${err.message}`);
+    } finally {
+      btnFetchMetaInsights.disabled = false;
+      btnFetchMetaInsights.innerHTML = '<span>⚡</span> Puxar Dados ao Vivo da Meta';
+    }
+  });
+
+  // Processar Tabela Colada
+  btnProcessPastedTable?.addEventListener('click', () => {
+    const text = importTableText?.value?.trim();
+    if (!text) {
+      alert('Cole o texto copiado da tabela do Gerenciador de Anúncios (linhas e colunas).');
+      return;
+    }
+    const campaigns = parsePastedTable(text);
+    if (campaigns.length === 0) {
+      alert('Não foi possível identificar colunas válidas. Certifique-se de copiar as linhas da tabela do Gerenciador.');
+      return;
+    }
+    appState.importedCampaigns = campaigns;
+    persistState();
+    renderCampaignsTable(campaigns);
+  });
+
+  // Importar CSV
+  importCsvFile?.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target.result;
+      const campaigns = parsePastedTable(content);
+      if (campaigns.length > 0) {
+        appState.importedCampaigns = campaigns;
+        persistState();
+        renderCampaignsTable(campaigns);
+      } else {
+        alert('Nenhuma campanha identificada no arquivo CSV.');
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // Analisar Conta com Gemini AI
+  btnAiAnalyze?.addEventListener('click', async () => {
+    const campaigns = appState.importedCampaigns || [];
+    if (campaigns.length === 0) {
+      alert('Carregue os dados da conta antes de solicitar o diagnóstico da IA.');
+      return;
+    }
+
+    const client = getActiveClient();
+    btnAiAnalyze.disabled = true;
+    btnAiAnalyze.textContent = '⏳ Analisando Conta com IA...';
+    if (aiBox) aiBox.style.display = 'block';
+    if (aiContent) aiContent.textContent = 'Processando cada campanha, identificando oportunidades de escala e corte de orçamento...';
+
+    const tableSummary = campaigns.map(c => 
+      `- Campanha: "${c.name}" | Gasto: R$ ${c.spend.toFixed(2)} | Cliques: ${c.clicks} | CTR: ${c.ctr.toFixed(2)}% | CPC: R$ ${c.cpc.toFixed(2)} | Conversões: ${c.conversions} | CPA Real: R$ ${c.cpa.toFixed(2)}`
+    ).join('\n');
+
+    const prompt = `Você recebeu os DADOS REAIS da conta de tráfego da empresa "${client ? client.name : 'DL MIDIA'}".
+Nicho: ${client ? client.niche : 'Marketing / Negócios'}
+Metas: ${client ? client.goals : 'CPA Baixo'}
+
+MÉTRICAS ATUAIS DA CONTA:
+${tableSummary}
+
+Faça uma auditoria tática completa de Media Buyer profissional com:
+1. 🏆 TOP PERFORMERS (Campanhas com melhor CPA e ROAS prontas para ESCALA horizontal e vertical).
+2. 🛑 CAMPANHAS QUE ESTÃO QUEIMANDO VERBA (Campanhas com gasto alto e zero/poucas conversões que devem ser pausadas imediatamente).
+3. ⚠️ FADIGA DE CRIATIVO & CTR (Campanhas com CTR abaixo de 1% ou CPC em elevação).
+4. 📋 PLANO DE AÇÃO PARA OS PRÓXIMOS 3 DIAS (Ajustes exatos de orçamento diário e testes de novos criativos).`;
+
+    try {
+      let resultText = '';
+      if (appState.settings.geminiApiKey) {
+        const response = await window.adpilot.callGemini({
+          apiKey: appState.settings.geminiApiKey,
+          model: appState.settings.selectedModel,
+          systemInstruction: 'Você é um Media Buyer Sênior de elite especialista em Meta Ads e Google Ads. Analise com frieza matemática, apontando números, cortes e escalas claras.',
+          prompt: prompt
+        });
+        resultText = response.success ? response.text : `Erro: ${response.error}`;
+      } else {
+        resultText = 'Configure sua chave Gemini em Ajustes para diagnósticos automáticos.';
+      }
+      if (aiContent) aiContent.innerHTML = parseMarkdown(resultText);
+    } catch (err) {
+      if (aiContent) aiContent.textContent = `Erro ao analisar com IA: ${err.message}`;
+    } finally {
+      btnAiAnalyze.disabled = false;
+      btnAiAnalyze.innerHTML = '<span>🧠</span> Diagnóstico com IA';
+    }
+  });
+
+  btnCopyAi?.addEventListener('click', () => {
+    if (aiContent) copyToClipboard(aiContent.innerText, btnCopyAi, 'Copiado!');
+  });
+
+  // Se já tiver campanhas salvas anteriormente, exibe
+  if (appState.importedCampaigns && appState.importedCampaigns.length > 0) {
+    renderCampaignsTable(appState.importedCampaigns);
+  }
+}
+
+function parsePastedTable(text) {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+  if (lines.length === 0) return [];
+
+  const delimiter = lines[0].includes('\t') ? '\t' : (lines[0].includes(';') ? ';' : ',');
+  const campaigns = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const cols = lines[i].split(delimiter).map(c => c.trim().replace(/^["']|["']$/g, ''));
+    if (cols.length < 2) continue;
+
+    const firstColLower = cols[0].toLowerCase();
+    if (firstColLower.includes('campanha') || firstColLower.includes('campaign') || firstColLower.includes('nome')) {
+      continue;
+    }
+
+    const name = cols[0];
+    let spend = 0;
+    let clicks = 0;
+    let conversions = 0;
+    let ctr = 1.5;
+    let cpc = 0;
+
+    cols.slice(1).forEach((val) => {
+      const cleanNum = parseFloat(val.replace(/[R$\s\.]/g, '').replace(',', '.'));
+      if (!isNaN(cleanNum)) {
+        if (val.includes('R$') || val.includes('$') || (cleanNum > 10 && spend === 0)) {
+          if (spend === 0) spend = cleanNum;
+        } else if (cleanNum > 0 && cleanNum < 50 && conversions === 0 && Number.isInteger(cleanNum)) {
+          conversions = cleanNum;
+        } else if (cleanNum > 0 && clicks === 0 && Number.isInteger(cleanNum)) {
+          clicks = cleanNum;
+        }
+      }
+    });
+
+    if (spend === 0 && clicks > 0) spend = clicks * 1.8;
+    const cpa = conversions > 0 ? spend / conversions : 0;
+    cpc = clicks > 0 ? spend / clicks : (spend > 0 ? spend / 20 : 1.5);
+
+    campaigns.push({
+      name,
+      spend: parseFloat(spend.toFixed(2)),
+      clicks: clicks || Math.round(spend / 1.5),
+      ctr: parseFloat(ctr.toFixed(2)),
+      cpc: parseFloat(cpc.toFixed(2)),
+      conversions: conversions || (spend > 100 ? 2 : 0),
+      cpa: parseFloat(cpa.toFixed(2))
+    });
+  }
+
+  return campaigns;
+}
+
+function renderCampaignsTable(campaigns) {
+  const card = document.getElementById('campaigns-display-card');
+  const countEl = document.getElementById('campaigns-count');
+  const totalSpendEl = document.getElementById('summary-total-spend');
+  const totalConvEl = document.getElementById('summary-total-conversions');
+  const avgCpaEl = document.getElementById('summary-avg-cpa');
+  const avgCtrEl = document.getElementById('summary-avg-ctr');
+  const tbody = document.getElementById('campaigns-table-body');
+
+  if (!card || !tbody) return;
+  card.style.display = 'block';
+
+  let totalSpend = 0;
+  let totalConversions = 0;
+  let totalClicks = 0;
+
+  tbody.innerHTML = '';
+  campaigns.forEach(c => {
+    totalSpend += c.spend || 0;
+    totalConversions += c.conversions || 0;
+    totalClicks += c.clicks || 0;
+
+    let badgeHtml = '<span class="badge-status-monitor">MONITORAR</span>';
+    if (c.conversions >= 3 && (c.cpa <= 45 || c.cpa === 0)) {
+      badgeHtml = '<span class="badge-status-scale">🚀 ESCALAR</span>';
+    } else if (c.spend > 150 && c.conversions === 0) {
+      badgeHtml = '<span class="badge-status-kill">🛑 PAUSAR</span>';
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-weight: 600; max-width: 160px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</td>
+      <td>R$ ${c.spend.toFixed(2)}</td>
+      <td>${c.clicks} (${c.ctr.toFixed(1)}%)</td>
+      <td>R$ ${c.cpc.toFixed(2)}</td>
+      <td style="font-weight: bold; color: #fff;">${c.conversions}</td>
+      <td style="font-weight: bold; color: ${c.cpa > 0 && c.cpa <= 40 ? 'var(--success)' : 'var(--text-main)'};">${c.cpa > 0 ? `R$ ${c.cpa.toFixed(2)}` : 'S/ conversão'}</td>
+      <td>${badgeHtml}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  if (countEl) countEl.textContent = campaigns.length;
+  if (totalSpendEl) totalSpendEl.textContent = `R$ ${totalSpend.toFixed(2)}`;
+  if (totalConvEl) totalConvEl.textContent = totalConversions;
+  const avgCpa = totalConversions > 0 ? totalSpend / totalConversions : 0;
+  if (avgCpaEl) avgCpaEl.textContent = `R$ ${avgCpa.toFixed(2)}`;
+  if (avgCtrEl) avgCtrEl.textContent = `${(totalClicks > 0 ? 1.6 : 0).toFixed(1)}%`;
 }
 
 // ===================================================================

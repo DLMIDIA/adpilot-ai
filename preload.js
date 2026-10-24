@@ -14,5 +14,7 @@ contextBridge.exposeInMainWorld('adpilot', {
   testGeminiKey: (params) => ipcRenderer.invoke('gemini:test-key', params),
   openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
   toggleAlwaysOnTop: () => ipcRenderer.invoke('window:toggle-always-on-top'),
-  isAlwaysOnTop: () => ipcRenderer.invoke('window:is-always-on-top')
+  isAlwaysOnTop: () => ipcRenderer.invoke('window:is-always-on-top'),
+  testMetaToken: (params) => ipcRenderer.invoke('meta:test-token', params),
+  fetchMetaInsights: (params) => ipcRenderer.invoke('meta:fetch-insights', params)
 });
